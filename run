@@ -1,0 +1,5 @@
+#!/bin/bash
+
+cmd="psc -r ../ -f 'src/**/*.js' -f 'bower_components/purescript-*/src/**/*.js' 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs' --json-errors"
+
+./index.js -s 'src/**/*.purs' -f blah -c "$cmd"

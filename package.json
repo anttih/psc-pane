@@ -1,0 +1,21 @@
+{
+  "name": "psc-pane",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "psc": "psc -r '../' -f 'src/**/*.js' -f 'bower_components/purescript-*/src/**/*.js' 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
+    "psc-pane": "pulp run -s 'src/**/*.purs' -c \"psc -f 'src/**/*.js' 'src/**/*.purs' 'bower_components/**/*.purs' --json-errors\""
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "minimatch": "^3.0.0",
+    "watchpack": "^0.2.9",
+    "yargs": "^3.31.0"
+  },
+  "devDependencies": {},
+  "author": "Antti Holvikari <anttih@gmail.com>",
+  "license": "LGPL-3.0"
+}
