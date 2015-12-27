@@ -3,9 +3,14 @@
   "version": "0.1.0",
   "description": "",
   "main": "index.js",
+  "bin": { "psc-pane": "index.js" },
+  "main": "psc-pane.js",
   "scripts": {
-    "psc": "psc -r '../' -f 'src/**/*.js' -f 'bower_components/purescript-*/src/**/*.js' 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
-    "psc-pane": "pulp run -s 'src/**/*.purs' -c \"psc -f 'src/**/*.js' 'src/**/*.purs' 'bower_components/**/*.purs' --json-errors\""
+    "psc": "psc -f 'src/**/*.js' -f 'bower_components/purescript-*/src/**/*.js' 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
+    "psc-bundle": "psc-bundle \"output/*/*.js\" --output psc-pane.js --module Main --main Main",
+    "psc-pane": "./index.js -f ignore -s 'src/**/*.purs' -c \"psc -f 'src/**/*.js' -f 'bower_components/purescript-*/src/**/*.js' 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs' --json-errors\"",
+    "build": "npm run psc && npm run psc-bundle",
+    "prepublish": "bower install && npm run build"
   },
   "directories": {
     "test": "test"
