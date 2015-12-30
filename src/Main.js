@@ -41,3 +41,11 @@ exports.write = function (str) {
     process.stdout.write(str);
   };
 };
+
+exports.rows = function () {
+  if (process.stdout.isTTY) {
+    return process.stdout.rows;
+  } else {
+    throw Error("Cannot get row count");
+  }
+};

@@ -62,12 +62,16 @@ compile cmd = do
   log "Compiling..."
   { stderr, stdout } <- execAff cmd
   
+  height <- liftEff rows
+
   clear
 
   err <- liftEff (toString Encoding.UTF8 stderr)
-  liftEff $ write (either show pretty (readJSON err))
+  liftEff $ write (either show (pretty height) (readJSON err))
 
   pure unit
+
+foreign import rows :: EffN Int
 
 app :: String -> Array String -> Array String -> String -> EffN Unit
 app src ffi globs cmd = launchAff do
