@@ -65,7 +65,7 @@ compile cmd = do
   clear
 
   err <- liftEff (toString Encoding.UTF8 stderr)
-  log (either show pretty (readJSON err))
+  liftEff $ write (either show pretty (readJSON err))
 
   pure unit
 

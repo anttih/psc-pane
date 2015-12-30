@@ -17,6 +17,7 @@
     "purescript-node-fs": "~0.10.0",
     "purescript-node-process": "~0.2.0",
     "purescript-node-streams": "~0.3.0",
-    "purescript-foreign": "~0.7.2"
+    "purescript-foreign": "~0.7.2",
+    "purescript-lists": "~0.7.7"
   }
 }

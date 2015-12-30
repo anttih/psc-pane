@@ -10,7 +10,6 @@ exports.exec = function (cmd) {
     return function (success) {
       return function () {
         return require('child_process').exec(cmd, function (err, stdout, stderr) {
-          console.log(stderr.toString())
           return success({stdout: stdout, stderr: stderr})();
         });
       };

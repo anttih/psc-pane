@@ -4,7 +4,7 @@ import Prelude (($), (/=), bind, pure, not)
 import Data.Maybe (Maybe)
 import Data.Foreign.Class (class IsForeign, readProp)
 import Data.Foreign.Null (runNull)
-import Data.String (split, contains)
+import Data.String (split)
 import Data.Array (filter, takeWhile)
 
 type ErrorCode = String
@@ -60,6 +60,4 @@ instance isForeignPscResult :: IsForeign PscResult where
 
 -- | Splits error message into lines and ignoring the wiki link, sorry.
 parseMessage :: String -> Array String
-parseMessage msg = takeWhile wikiLink (filter (/= "") (split "\n" msg))
-  where
-  wikiLink line = not (contains "See https://" line)
+parseMessage = split "\n"
