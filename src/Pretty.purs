@@ -1,9 +1,9 @@
 module Pretty where
 
 import Prelude ((<>), show, id, (<<<), not, (==), (/=), (<=), (-))
-import Data.Array (head, length, take, dropWhile, takeWhile, filter)
+import Data.Array (head, length, take, takeWhile, filter)
 import Data.String (joinWith, contains, split, trim)
-import Data.String.Regex (regex, replace)
+import Data.String.Regex as R
 import Data.Maybe (Maybe(..), maybe)
 import Data.List (List(..), toList)
 
@@ -57,7 +57,7 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
                              ]) lines
 
   trimLines :: Array String -> Array String
-  trimLines lines = split "\n" (replace (regex "^\n+|\n+$" flags) "" (joinWith "\n" lines))
+  trimLines lines = replace (R.regex "^\n+|\n+$" flags) "" lines
     where flags = { global: true
                   , ignoreCase: false
                   , multiline: false
@@ -66,12 +66,15 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
 
 
   withoutExtraLines :: Array String -> Array String
-  withoutExtraLines lines = split "\n" (replace (regex "\n{2}" flags) "\n" (joinWith "\n" lines))
+  withoutExtraLines lines = replace (R.regex "\n{2}" flags) "\n" lines
     where flags = { global: true
                   , ignoreCase: false
                   , multiline: true
                   , sticky: false
                   , unicode: false }
+
+  replace :: R.Regex -> String -> Array String -> Array String
+  replace regex s lines = split "\n" (R.replace regex s (joinWith "\n" lines))
 
   withoutWikiLink :: Array String -> Array String
   withoutWikiLink = trimLines <<< takeWhile wikiLink
