@@ -2,13 +2,14 @@
   "name": "psc-pane",
   "version": "0.1.0",
   "description": "",
-  "main": "index.js",
-  "bin": { "psc-pane": "index.js" },
   "main": "psc-pane.js",
+  "bin": {
+    "psc-pane": "index.js"
+  },
   "scripts": {
     "psc": "psc -f 'src/**/*.js' -f 'bower_components/purescript-*/src/**/*.js' 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
     "psc-bundle": "psc-bundle \"output/*/*.js\" --output psc-pane.js --module Main --main Main",
-    "psc-pane": "./index.js -f ignore -s 'src/**/*.purs' -c \"psc -f 'src/**/*.js' -f 'bower_components/purescript-*/src/**/*.js' 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs' --json-errors\"",
+    "psc-pane": "./index.js -f 'src/**/*.js' -f 'bower_components/purescript-*/src/**/*.js' 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
     "build": "npm run psc && npm run psc-bundle",
     "prepublish": "bower install && npm run build"
   },
@@ -17,6 +18,7 @@
   },
   "dependencies": {
     "minimatch": "^3.0.0",
+    "shell-escape": "^0.2.0",
     "watchpack": "^0.2.9",
     "yargs": "^3.31.0"
   },

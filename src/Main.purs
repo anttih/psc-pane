@@ -8,6 +8,7 @@ import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff.Exception (Error(), EXCEPTION())
 import Control.Monad.Aff (Aff(), makeAff, launchAff)
 import Control.Monad.Aff.Console (log)
+import Data.Array (concatMap)
 import Data.Foldable (any)
 import Data.Foreign.Class (readJSON)
 import Data.Either (Either(..), either)
@@ -15,13 +16,12 @@ import Data.Maybe (Maybe(..))
 
 import Node.FS (FS())
 import Node.Buffer (Buffer(), BUFFER(), toString)
-import Node.Encoding as Encoding
+import Node.Encoding (Encoding(UTF8))
 
-import Node.Yargs.Setup (usage)
-import Node.Yargs.Applicative (yarg, runY)
+import Node.Yargs.Setup (usage, demandCount)
+import Node.Yargs.Applicative (yarg, runY, nonHyphen)
 
-import Parse
-import Pretty
+import Pretty (pretty)
 
 type EffN = Eff (fs :: FS, err :: EXCEPTION, console :: CONSOLE, buffer :: BUFFER)
 type AffN = Aff (fs :: FS, err :: EXCEPTION, console :: CONSOLE, buffer :: BUFFER)
@@ -66,25 +66,35 @@ compile cmd = do
 
   clear
 
-  err <- liftEff (toString Encoding.UTF8 stderr)
+  err <- liftEff (toString UTF8 stderr)
   liftEff $ write (either show (pretty height) (readJSON err))
 
   pure unit
 
 foreign import rows :: EffN Int
 
-app :: String -> Array String -> Array String -> String -> EffN Unit
-app src ffi globs cmd = launchAff do
-  compile cmd
+foreign import shellEscape :: Array String -> String
+
+buildCmd :: Array String -> Array String -> String
+buildCmd ffi rest = shellEscape $
+  ["psc"]
+  <> concatMap (\f -> ["--ffi", f]) ffi
+  <> rest
+  <> ["--json-errors"]
+
+app :: Array String -> String -> Array String -> EffN Unit
+app files src ffi = launchAff do
+  let cmd' = buildCmd ffi files
+  compile cmd'
   watchAff [src] \path -> do
-    when (any (minimatch path) globs) (compile cmd)
+    when (any (minimatch path) files) (compile cmd')
 
 main :: EffN Unit
 main = do
-  let setup = usage "psc-pane --src 'src/**/*.purs'"
+  let setup = usage "psc-pane [FILE] OPTIONS" <> demandCount 1 "No input files."
   runY setup $
     app
-    <$> yarg "p" ["src-path"] (Just "path") (Left "src") false
-    <*> yarg "f" ["ffi"] (Just "The input .js file(s) providing foreign import implementations") (Right "moi") false
-    <*> yarg "s" ["src"] (Just "file glob") (Right "purs source glob is missing") false 
-    <*> yarg "c" ["cmd"] (Just "psc command") (Right "psc command") false
+    <$> nonHyphen
+    <*> yarg "s" ["src-path"] (Just "path") (Left "src") false
+    <*> yarg "f" ["ffi"] (Just "The input .js file(s) providing foreign import implementations")
+      (Left ["src/**/*.js", "bower_components/pursescript-*/src/**/*.js"]) false

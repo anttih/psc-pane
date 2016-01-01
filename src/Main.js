@@ -49,3 +49,8 @@ exports.rows = function () {
     throw Error("Cannot get row count");
   }
 };
+
+exports.shellEscape = function (parts) {
+  return require('shell-escape')(parts);
+};
+
