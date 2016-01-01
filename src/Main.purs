@@ -76,8 +76,8 @@ foreign import rows :: EffN Int
 foreign import shellEscape :: Array String -> String
 
 buildCmd :: Array String -> Array String -> String
-buildCmd ffi rest = shellEscape $
-  ["psc"]
+buildCmd ffi rest = shellEscape
+  $ ["psc"]
   <> concatMap (\f -> ["--ffi", f]) ffi
   <> rest
   <> ["--json-errors"]

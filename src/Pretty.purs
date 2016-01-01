@@ -6,13 +6,17 @@ import Data.String (joinWith, contains, split, trim)
 import Data.String.Regex as R
 import Data.Maybe (Maybe(..), maybe)
 import Data.List (List(..), toList)
+import Ansi.Codes ( EscapeCode(Graphics)
+                  , GraphicsParam(PBackground, PForeground, Reset)
+                  , Color(Black, Green, Yellow, Red, White)
+                  , escapeCodeToString)
 
 import Parse (Position(Position), PscError(PscError), PscResult(PscResult))
 
 type Height = Int
 
 pretty :: Height -> PscResult -> String
-pretty h (PscResult { warnings: [], errors: [] }) = "All good"
+pretty h (PscResult { warnings: [], errors: [] }) = green "All good"
 pretty h (PscResult { warnings: [], errors: errors }) = maybe "" (prettyError h) (head errors)
 pretty h (PscResult { warnings: warnings, errors: [] }) = maybe "" (prettyWarning h) (head warnings)
 pretty h (PscResult { warnings: _, errors: errors }) = maybe "" (prettyError h) (head errors)
@@ -23,10 +27,10 @@ prettyError' t h (PscError err@{ position }) =
   <> "\n" <> (prettyMessage (h - 1) err.message)
 
 prettyError :: Height -> PscError -> String
-prettyError = prettyError' "Error"
+prettyError = prettyError' (red "Error")
 
 prettyWarning :: Height -> PscError -> String
-prettyWarning = prettyError' "Warning"
+prettyWarning = prettyError' (yellow "Warning")
 
 filenameOrModule :: forall xs. { filename :: Maybe String, moduleName :: Maybe String | xs } -> String
 filenameOrModule { filename: Just file } = file
@@ -35,7 +39,7 @@ filenameOrModule _ = ""
 
 prettyPosition :: Maybe Position -> String
 prettyPosition (Just (Position { startLine, startColumn })) =
-  ":" <> (show startLine) <> ":" <> (show startColumn)
+  " line " <> (show startLine) <> ", column " <> (show startColumn)
 prettyPosition Nothing = ""
 
 prettyMessage :: Height -> Array String -> String
@@ -96,4 +100,21 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
     in if (length res) <= height
       then Just res
       else try rest res
+
+--
+-- Color stuff
+--
+
+withColor :: Array GraphicsParam -> String -> String
+withColor params s =
+  escapeCodeToString (Graphics params) <> s <> escapeCodeToString (Graphics [Reset])
+
+green :: String -> String
+green = withColor [PBackground Green, PForeground White]
+
+yellow :: String -> String
+yellow = withColor [PBackground Yellow, PForeground Black]
+
+red :: String -> String
+red = withColor [PBackground Red, PForeground White]
 
