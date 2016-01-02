@@ -63,6 +63,7 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
                              , withoutWikiLink
                              , withoutEmptyLines
                              , withoutTypeInfo
+                             , take height
                              ]) lines
 
   trimLines :: Array String -> Array String
