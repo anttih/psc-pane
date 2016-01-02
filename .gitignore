@@ -3,6 +3,5 @@
 /.pulp-cache/
 /output/
 /.psci*
-/src/.webpack.js
 /psc-pane.js
 /npm-debug.log
