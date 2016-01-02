@@ -56,7 +56,5 @@ instance isForeignPscResult :: IsForeign PscResult where
     errors <- readProp "errors" d
     pure $ PscResult { warnings, errors }
 
-
--- | Splits error message into lines and ignoring the wiki link, sorry.
 parseMessage :: String -> Array String
 parseMessage = split "\n"
