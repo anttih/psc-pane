@@ -5,15 +5,14 @@
 
 "use strict";
 
-exports.exec = function (cmd) {
-  return function (fail) {
-    return function (success) {
-      return function () {
-        return require('child_process').exec(cmd, function (err, stdout, stderr) {
-          return success({stdout: stdout, stderr: stderr})();
-        });
-      };
-    };
+var concat = require('concat-stream');
+
+exports.spawn = function (cmd, args, fail, success) {
+  return function () {
+    var proc = require('child_process').spawn(cmd, args);
+    proc.stderr.pipe(concat(function (buf) {
+      success(buf)();
+    }));
   };
 };
 
@@ -49,8 +48,3 @@ exports.rows = function () {
     throw Error("Cannot get row count");
   }
 };
-
-exports.shellEscape = function (parts) {
-  return require('shell-escape')(parts);
-};
-
