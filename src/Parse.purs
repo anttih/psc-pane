@@ -1,11 +1,10 @@
 module Parse where
 
-import Prelude (($), (/=), bind, pure, not)
+import Prelude (($), bind, pure)
 import Data.Maybe (Maybe)
 import Data.Foreign.Class (class IsForeign, readProp)
 import Data.Foreign.Null (runNull)
 import Data.String (split)
-import Data.Array (filter, takeWhile)
 
 type ErrorCode = String
 
