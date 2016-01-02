@@ -19,6 +19,7 @@
     "purescript-node-streams": "~0.3.0",
     "purescript-foreign": "~0.7.2",
     "purescript-lists": "~0.7.7",
-    "purescript-ansi": "~0.1.2"
+    "purescript-ansi": "~0.1.2",
+    "purescript-node-path": "~0.4.1"
   }
 }

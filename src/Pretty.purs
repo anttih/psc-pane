@@ -1,7 +1,7 @@
 module Pretty where
 
-import Prelude ((<>), show, id, (<<<), not, (==), (/=), (<=), (-))
-import Data.Array (head, length, take, takeWhile, filter)
+import Prelude (($), (<$>), (<>), show, id, (<<<), not, (==), (/=), (<=), (-))
+import Data.Array (head, length, null, take, takeWhile, filter)
 import Data.String (joinWith, contains, split, trim)
 import Data.String.Regex as R
 import Data.Maybe (Maybe(..), maybe)
@@ -10,32 +10,37 @@ import Ansi.Codes ( EscapeCode(Graphics)
                   , GraphicsParam(PBackground, PForeground, Reset)
                   , Color(Black, Green, Yellow, Red, White)
                   , escapeCodeToString)
+import Node.Path (FilePath, relative)
 
 import Parse (Position(Position), PscError(PscError), PscResult(PscResult))
 
 type Height = Int
 
-pretty :: Height -> PscResult -> String
-pretty h (PscResult { warnings: [], errors: [] }) = green "All good"
-pretty h (PscResult { warnings: [], errors: errors }) = maybe "" (prettyError h) (head errors)
-pretty h (PscResult { warnings: warnings, errors: [] }) = maybe "" (prettyWarning h) (head warnings)
-pretty h (PscResult { warnings: _, errors: errors }) = maybe "" (prettyError h) (head errors)
+pretty :: FilePath -> Height -> PscResult -> String
+pretty cwd h (PscResult { warnings: [], errors: [] }) = green "All good"
+pretty cwd h (PscResult { warnings: warnings, errors: errors }) = maybe "" id $
+  if not (null errors)
+    then prettyError cwd h <$> head errors
+    else prettyWarning cwd h <$> head warnings
 
-prettyError' :: String -> Height -> PscError -> String
-prettyError' t h (PscError err@{ position }) =
-  t <> " " <> (filenameOrModule err) <> (prettyPosition position)
+prettyError' :: String -> FilePath -> Height -> PscError -> String
+prettyError' t cwd h (PscError err@{ position }) =
+  t <> " " <> (filenameOrModule cwd err) <> (prettyPosition position)
   <> "\n" <> (prettyMessage (h - 1) err.message)
 
-prettyError :: Height -> PscError -> String
+prettyError :: FilePath -> Height -> PscError -> String
 prettyError = prettyError' (red "Error")
 
-prettyWarning :: Height -> PscError -> String
+prettyWarning :: FilePath -> Height -> PscError -> String
 prettyWarning = prettyError' (yellow "Warning")
 
-filenameOrModule :: forall xs. { filename :: Maybe String, moduleName :: Maybe String | xs } -> String
-filenameOrModule { filename: Just file } = file
-filenameOrModule { moduleName: Just moduleName } = moduleName
-filenameOrModule _ = ""
+filenameOrModule :: forall xs
+  . FilePath
+  -> { filename :: Maybe String , moduleName :: Maybe String | xs }
+  -> String
+filenameOrModule cwd { filename: Just file } = relative cwd file
+filenameOrModule _ { moduleName: Just moduleName } = moduleName
+filenameOrModule _ _ = ""
 
 prettyPosition :: Maybe Position -> String
 prettyPosition (Just (Position { startLine, startColumn })) =

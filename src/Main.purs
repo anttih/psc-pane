@@ -17,14 +17,24 @@ import Data.Maybe (Maybe(..))
 import Node.FS (FS())
 import Node.Buffer (Buffer(), BUFFER(), toString)
 import Node.Encoding (Encoding(UTF8))
+import Node.Process (PROCESS, cwd)
 
 import Node.Yargs.Setup (usage, demandCount)
 import Node.Yargs.Applicative (yarg, runY, nonHyphen)
 
 import Pretty (pretty)
 
-type EffN = Eff (fs :: FS, err :: EXCEPTION, console :: CONSOLE, buffer :: BUFFER)
-type AffN = Aff (fs :: FS, err :: EXCEPTION, console :: CONSOLE, buffer :: BUFFER)
+type EffN = Eff ( fs :: FS
+                , err :: EXCEPTION
+                , console :: CONSOLE
+                , buffer :: BUFFER
+                , process :: PROCESS)
+
+type AffN = Aff ( fs :: FS
+                , err :: EXCEPTION
+                , console :: CONSOLE
+                , process :: PROCESS
+                , buffer :: BUFFER)
 
 foreign import watch :: Array String -> (String -> EffN Unit) -> EffN Unit
 
@@ -66,8 +76,10 @@ compile cmd = do
 
   clear
 
+  dir <- liftEff cwd
+
   err <- liftEff (toString UTF8 stderr)
-  liftEff $ write (either show (pretty height) (readJSON err))
+  liftEff $ write (either show (pretty dir height) (readJSON err))
 
   pure unit
 
