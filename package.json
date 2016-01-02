@@ -1,5 +1,7 @@
 {
   "name": "psc-pane",
+  "author": "Antti Holvikari <anttih@gmail.com>",
+  "license": "LGPL-3.0",
   "version": "0.1.0",
   "description": "",
   "main": "psc-pane.js",
@@ -17,12 +19,9 @@
     "test": "test"
   },
   "dependencies": {
+    "concat-stream": "^1.5.1",
     "minimatch": "^3.0.0",
-    "shell-escape": "^0.2.0",
     "watchpack": "^0.2.9",
     "yargs": "^3.31.0"
-  },
-  "devDependencies": {},
-  "author": "Antti Holvikari <anttih@gmail.com>",
-  "license": "LGPL-3.0"
+  }
 }
