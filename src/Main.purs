@@ -20,7 +20,7 @@ import Node.Encoding (Encoding(UTF8))
 import Node.Process (PROCESS, cwd)
 
 import Node.Yargs.Setup (usage, demandCount)
-import Node.Yargs.Applicative (yarg, runY, nonHyphen)
+import Node.Yargs.Applicative (Y(), arg, yarg, runY)
 
 import Pretty (pretty)
 
@@ -87,26 +87,34 @@ foreign import rows :: EffN Int
 
 foreign import shellEscape :: Array String -> String
 
-buildCmd :: Array String -> Array String -> String
-buildCmd ffi rest = shellEscape
+buildCmd :: Array String -> String -> Array String -> String
+buildCmd ffi out rest = shellEscape
   $ ["psc"]
   <> concatMap (\f -> ["--ffi", f]) ffi
+  <> ["--output", out]
   <> rest
   <> ["--json-errors"]
 
-app :: Array String -> String -> Array String -> EffN Unit
-app files src ffi = launchAff do
-  let cmd' = buildCmd ffi files
+app :: Array String -> String -> Array String -> String -> EffN Unit
+app files src ffi out = launchAff do
+  let cmd' = buildCmd ffi out files
   compile cmd'
   watchAff [src] \path -> do
     when (any (minimatch path) files) (compile cmd')
 
+-- | Read all non-hyphenated args as strings
+nonHyphen :: Y (Array String)
+nonHyphen = arg "_"
+
 main :: EffN Unit
 main = do
-  let setup = usage "psc-pane [FILE] OPTIONS" <> demandCount 1 "No input files."
+  let setup = usage "psc-pane [FILE] [-f|--ffi ARG] [-o|--output ARG]"
+        <> demandCount 1 "No input files."
   runY setup $
     app
     <$> nonHyphen
     <*> yarg "s" ["src-path"] (Just "path") (Left "src") false
     <*> yarg "f" ["ffi"] (Just "The input .js file(s) providing foreign import implementations")
-      (Left ["src/**/*.js", "bower_components/pursescript-*/src/**/*.js"]) false
+      (Left ["src/**/*.js", "bower_components/pursescript-*/src/**/*.js"]) true
+    <*> yarg "o" ["output"] (Just "The output directory (default: \"output\")")
+      (Left "output") true
