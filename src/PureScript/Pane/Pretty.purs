@@ -1,6 +1,6 @@
 module PureScript.Pane.Pretty where
 
-import Prelude (($), (<$>), (<>), show, id, (<<<), not, (==), (/=), (<=), (-))
+import Prelude (($), (<$>), (<>), show, id, (<<<), not, (/=), (<=), (-))
 import Data.Array (head, length, null, take, takeWhile, filter)
 import Data.String (joinWith, contains, split, trim)
 import Data.String.Regex as R
