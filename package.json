@@ -3,7 +3,7 @@
   "author": "Antti Holvikari <anttih@gmail.com>",
   "license": "LGPL-3.0",
   "version": "0.1.0",
-  "description": "",
+  "description": "Auto reloading PureScript compiler",
   "main": "psc-pane.js",
   "bin": {
     "psc-pane": "index.js"
