@@ -12,7 +12,7 @@
   ],
   "dependencies": {
     "purescript-console": "^0.1.0",
-    "purescript-yargs": "https://github.com/anttih/purescript-yargs.git#demand-count",
+    "purescript-yargs": "~0.7.1",
     "purescript-aff": "~0.13.1",
     "purescript-node-fs": "~0.9.2",
     "purescript-node-process": "~0.2.0",
