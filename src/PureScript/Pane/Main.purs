@@ -1,4 +1,4 @@
-module Main where
+module PureScript.Pane.Main where
 
 import Prelude (Unit, bind, (<*>), (<$>), ($), (<>), unit, pure, const)
 import Control.Monad (when)
@@ -23,7 +23,7 @@ import Node.Process (PROCESS, cwd)
 import Node.Yargs.Setup (usage, demandCount)
 import Node.Yargs.Applicative (Y(), arg, yarg, runY)
 
-import Pretty (pretty)
+import PureScript.Pane.Pretty (pretty)
 
 type EffN = Eff ( fs :: FS
                 , err :: EXCEPTION

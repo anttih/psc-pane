@@ -1,4 +1,4 @@
-module Parse where
+module PureScript.Pane.Parser where
 
 import Prelude (($), bind, pure)
 import Data.Maybe (Maybe)

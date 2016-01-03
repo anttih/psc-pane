@@ -1,4 +1,4 @@
-module Pretty where
+module PureScript.Pane.Pretty where
 
 import Prelude (($), (<$>), (<>), show, id, (<<<), not, (==), (/=), (<=), (-))
 import Data.Array (head, length, null, take, takeWhile, filter)
@@ -12,7 +12,7 @@ import Ansi.Codes ( EscapeCode(Graphics)
                   , escapeCodeToString)
 import Node.Path (FilePath, relative)
 
-import Parse (Position(Position), PscError(PscError), PscResult(PscResult))
+import PureScript.Pane.Parser (Position(Position), PscError(PscError), PscResult(PscResult))
 
 type Height = Int
 

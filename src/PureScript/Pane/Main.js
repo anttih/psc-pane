@@ -1,4 +1,4 @@
-// module Main
+// module PureScript.Pane.Main
 
 // Shamelessly stolen from Pulp:
 // https://github.com/bodil/pulp/blob/master/src/Pulp/Watch.js
