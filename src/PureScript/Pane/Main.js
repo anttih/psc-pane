@@ -16,12 +16,12 @@ exports.spawn = function (cmd, args, fail, success) {
   };
 };
 
-exports.watch = function watch(directories) {
+exports.watch = function watch(dirs) {
   return function(act) {
     return function() {
       var Watchpack = require("watchpack");
       var watchpack = new Watchpack();
-      watchpack.watch([], directories, Date.now() - 10000);
+      watchpack.watch([], dirs, Date.now() - 10000);
       watchpack.on("change", function(path) {
         act(path)();
       });

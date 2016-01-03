@@ -86,12 +86,13 @@ buildArgs ffi out rest =
   <> rest
   <> ["--json-errors"]
 
-app :: Array String -> String -> Array String -> String -> EffN Unit
-app files src ffi out = launchAff do
+app :: Array String -> Array String -> Array String -> String -> EffN Unit
+app files dirs ffi out = launchAff do
   let args = buildArgs ffi out files
+  let globs = ffi <> files
   compile args
-  watchAff [src] \path -> do
-    when (any (minimatch path) files) (compile args)
+  watchAff dirs \path -> do
+    when (any (minimatch path) globs) (compile args)
 
 -- | Read all non-hyphenated args as strings
 nonHyphen :: Y (Array String)
@@ -99,13 +100,20 @@ nonHyphen = arg "_"
 
 main :: EffN Unit
 main = do
-  let setup = usage "psc-pane [FILE] [-f|--ffi ARG] [-o|--output ARG]"
+  let setup = usage "psc-pane [FILE] [OPTION]"
         <> demandCount 1 "No input files."
   runY setup $
     app
     <$> nonHyphen
-    <*> yarg "s" ["src-path"] (Just "path") (Left "src") false
-    <*> yarg "f" ["ffi"] (Just "The input .js file(s) providing foreign import implementations")
-      (Left []) false
-    <*> yarg "o" ["output"] (Just "The output directory (default: \"output\")")
-      (Left "output") true
+    <*> yarg "w" ["watch-path"]
+      (Just  "Directory to watch for changes")
+      (Right "At least one watch path is required.")
+      true
+    <*> yarg "f" ["ffi"]
+      (Just "The input .js file(s) providing foreign import implementations")
+      (Left [])
+      true
+    <*> yarg "o" ["output"]
+      (Just "The output directory (default: \"output\")")
+      (Left "output")
+      true
