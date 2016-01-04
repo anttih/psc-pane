@@ -11,7 +11,7 @@
   "scripts": {
     "psc": "psc -f 'src/**/*.js' -f 'bower_components/purescript-*/src/**/*.js' 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
     "psc-bundle": "psc-bundle \"output/*/*.js\" --output psc-pane.js --module PureScript.Pane.Main --main PureScript.Pane.Main",
-    "psc-pane": "./index.js -w src -f 'src/**/*.js' -f 'bower_components/purescript-*/src/**/*.js' 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
+    "psc-pane": "./index.js -w src -s 'src/**/*.purs' -s 'bower_components/purescript-*/src/**/*.purs' -f 'src/**/*.js' -f 'bower_components/purescript-*/src/**/*.js'",
     "build": "npm run psc && npm run psc-bundle",
     "prepublish": "bower install && npm run build"
   },

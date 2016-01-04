@@ -1,6 +1,6 @@
 module PureScript.Pane.Main where
 
-import Prelude (Unit, bind, (<*>), (<$>), ($), (<>), unit, pure, const)
+import Prelude ((<*>), (<$>), ($), (<>), Unit, bind, unit, pure, const, map)
 import Control.Monad (when)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
@@ -14,14 +14,15 @@ import Data.Foreign.Class (readJSON)
 import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..))
 import Data.Function (Fn4(), runFn4)
+import Data.String (joinWith)
 
 import Node.FS (FS())
 import Node.Buffer (Buffer(), BUFFER(), toString)
 import Node.Encoding (Encoding(UTF8))
 import Node.Process (PROCESS, cwd)
 
-import Node.Yargs.Setup (usage, demandCount)
-import Node.Yargs.Applicative (Y(), arg, yarg, runY)
+import Node.Yargs.Setup (example, usage, help)
+import Node.Yargs.Applicative (yarg, runY)
 
 import PureScript.Pane.Pretty (pretty)
 
@@ -94,24 +95,33 @@ app files dirs ffi out = launchAff do
   watchAff dirs \path -> do
     when (any (minimatch path) globs) (compile args)
 
--- | Read all non-hyphenated args as strings
-nonHyphen :: Y (Array String)
-nonHyphen = arg "_"
+quoteJoin :: Array String -> String
+quoteJoin xs = joinWith ", " (map (\v -> "'" <> v <> "'") xs)
 
 main :: EffN Unit
 main = do
-  let setup = usage "psc-pane [FILE] [OPTION]"
-        <> demandCount 1 "No input files."
+  let setup = usage "psc-pane - Auto reloading PureScript compiler\n\nUsage: psc-pane [OPTION]"
+              <> help "help" "Show this help"
+              <> example "psc-pane" "Assume a pulp style project layout"
+              <> example "psc-pane -w purs -s 'purs/**/*.purs' -f 'purs/**/*.js'"
+                         "Having .purs and .js sources under 'purs'"
+  let defaultPurs = ["src/**/*.purs", "bower_components/purescript-*/src/**/*.purs"]
+  let defaultFFI = ["src/**/*.js", "bower_components/purescript-*/src/**/*.js"]
   runY setup $
     app
-    <$> nonHyphen
+    <$> yarg "s" ["src"]
+        (Just (".purs source file or glob pattern (default values: "
+              <> (quoteJoin defaultPurs) <> ")"))
+      (Left defaultPurs)
+      true
     <*> yarg "w" ["watch-path"]
-      (Just  "Directory to watch for changes")
-      (Right "At least one watch path is required.")
+      (Just  "Directory to watch for changes (default: \"src\")")
+      (Left ["src"])
       true
     <*> yarg "f" ["ffi"]
-      (Just "The input .js file(s) providing foreign import implementations")
-      (Left [])
+      (Just ("The input .js file(s) providing foreign import implementations (default values: "
+             <> (quoteJoin defaultFFI) <> ")"))
+      (Left defaultFFI)
       true
     <*> yarg "o" ["output"]
       (Just "The output directory (default: \"output\")")
