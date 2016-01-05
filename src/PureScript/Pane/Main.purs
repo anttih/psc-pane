@@ -67,9 +67,9 @@ clear = do
   pure unit
 
 readErr :: String -> Maybe PscResult
-readErr err = let lines = split "\n" (trim err)
-              in last lines >>= readLine
-  where readLine line = either (const Nothing) Just (readJSON line)
+readErr err = last lines >>= readLine
+  where lines = split "\n" (trim err)
+        readLine line = either (const Nothing) Just (readJSON line)
 
 compile :: Array String -> AffN Unit
 compile args = do
