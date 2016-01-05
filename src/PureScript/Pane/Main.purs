@@ -1,6 +1,6 @@
 module PureScript.Pane.Main where
 
-import Prelude ((<*>), (<$>), ($), (<>), Unit, bind, unit, pure, const, map)
+import Prelude ((<*>), (<$>), ($), (<>), (>>=), Unit, bind, unit, pure, const, map)
 import Control.Monad (when)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
@@ -8,13 +8,13 @@ import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff.Exception (Error(), EXCEPTION())
 import Control.Monad.Aff (Aff(), makeAff, launchAff)
 import Control.Monad.Aff.Console (log)
-import Data.Array (concatMap)
+import Data.Array (concatMap, last)
 import Data.Foldable (any)
 import Data.Foreign.Class (readJSON)
 import Data.Either (Either(..), either)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.Function (Fn4(), runFn4)
-import Data.String (joinWith)
+import Data.String (joinWith, split, trim)
 
 import Node.FS (FS())
 import Node.Buffer (Buffer(), BUFFER(), toString)
@@ -25,6 +25,7 @@ import Node.Yargs.Setup (example, usage, help)
 import Node.Yargs.Applicative (yarg, runY)
 
 import PureScript.Pane.Pretty (pretty)
+import PureScript.Pane.Parser (PscResult())
 
 type EffN = Eff ( fs :: FS
                 , err :: EXCEPTION
@@ -65,6 +66,11 @@ clear = do
   liftEff (write "\x1b[1;1H")
   pure unit
 
+readErr :: String -> Maybe PscResult
+readErr err = let lines = split "\n" (trim err)
+              in last lines >>= readLine
+  where readLine line = either (const Nothing) Just (readJSON line)
+
 compile :: Array String -> AffN Unit
 compile args = do
   clear
@@ -74,8 +80,7 @@ compile args = do
   clear
   dir <- liftEff cwd
   err <- liftEff (toString UTF8 buf)
-  let errorMsg = "Error reading psc output."
-  liftEff $ write (either (const err) (pretty dir height) (readJSON err))
+  liftEff $ write (maybe err (pretty dir height) (readErr err))
   pure unit
 
 foreign import rows :: EffN Int
