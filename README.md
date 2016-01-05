@@ -6,8 +6,6 @@ Auto reloading compiler for PureScript inspired by [ghcid](https://github.com/nd
 Only one error is displayed at a time and the output is made to fit the window
 (only height currently).
 
-![screencast](http://anttih.github.io/psc-pane/psc-pane.gif)
-
 ### Installation
 
 ```
