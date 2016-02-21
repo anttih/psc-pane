@@ -1,27 +1,27 @@
 module PureScript.Pane.Main where
 
-import Prelude ((<*>), (<$>), ($), (<>), (>>=), Unit, bind, unit, pure, const, map)
+import Prelude ((<*>), (<<<), (<$>), ($), (<>), Unit, bind, unit, pure, const, map)
 import Control.Monad (when)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE())
-import Control.Monad.Eff.Exception (Error(), EXCEPTION())
+import Control.Monad.Eff.Exception (EXCEPTION())
 import Control.Monad.Aff (Aff(), makeAff, launchAff)
 import Control.Monad.Aff.Console (log)
-import Data.Array (concatMap, last)
-import Data.Foldable (any)
+import Data.Foldable (any, fold)
 import Data.Foreign.Class (readJSON)
 import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..), maybe)
-import Data.Function (Fn4(), runFn4)
-import Data.String (joinWith, split, trim)
+import Data.Maybe.First (First(..), runFirst)
+import Data.Function (Fn2(), runFn2)
+import Data.String (split, trim)
 
 import Node.FS (FS())
 import Node.Buffer (Buffer(), BUFFER(), toString)
 import Node.Encoding (Encoding(UTF8))
 import Node.Process (PROCESS, cwd)
 
-import Node.Yargs.Setup (example, usage, help)
+import Node.Yargs.Setup (usage, help)
 import Node.Yargs.Applicative (yarg, runY)
 
 import PureScript.Pane.Pretty (pretty)
@@ -47,16 +47,10 @@ watchAff dirs callback =
 
 foreign import minimatch :: String -> String -> Boolean
 
-foreign import spawn ::
-  Fn4
-  String
-  (Array String)
-  (Error -> EffN Unit)
-  (Buffer -> EffN Unit)
-  (EffN Unit)
+foreign import spawn :: Fn2 String (Buffer -> EffN Unit) (EffN Unit)
 
-spawnAff :: String -> Array String -> AffN Buffer
-spawnAff cmd args = makeAff (\error success -> runFn4 spawn cmd args error success)
+spawnAff :: String -> AffN Buffer
+spawnAff cmd = makeAff (\error success -> runFn2 spawn cmd success)
 
 foreign import write :: String -> EffN Unit
 
@@ -67,15 +61,18 @@ clear = do
   pure unit
 
 readErr :: String -> Maybe PscResult
-readErr err = last lines >>= readLine
+readErr err = findFirst jsonOutput lines
   where lines = split "\n" (trim err)
-        readLine line = either (const Nothing) Just (readJSON line)
+        jsonOutput line = either (const Nothing) Just (readJSON line)
 
-compile :: Array String -> AffN Unit
-compile args = do
+        findFirst :: (String -> Maybe PscResult) -> Array String -> Maybe PscResult
+        findFirst f xs = runFirst (fold (map (First <<< f) xs))
+
+compile :: String -> AffN Unit
+compile cmd = do
   clear
   log "Compiling..."
-  buf <- spawnAff "psc" args
+  buf <- spawnAff cmd
   height <- liftEff rows
   clear
   dir <- liftEff cwd
@@ -85,50 +82,23 @@ compile args = do
 
 foreign import rows :: EffN Int
 
-buildArgs :: Array String -> String -> Array String -> Array String
-buildArgs ffi out rest =
-  concatMap (\f -> ["--ffi", f]) ffi
-  <> ["--output", out]
-  <> rest
-  <> ["--json-errors"]
-
-app :: Array String -> Array String -> Array String -> String -> EffN Unit
-app files dirs ffi out = launchAff do
-  let args = buildArgs ffi out files
-  let globs = ffi <> files
-  compile args
+app :: String -> Array String -> EffN Unit
+app cmd dirs = launchAff do
+  compile cmd
   watchAff dirs \path -> do
-    when (any (minimatch path) globs) (compile args)
-
-quoteJoin :: Array String -> String
-quoteJoin xs = joinWith ", " (map (\v -> "'" <> v <> "'") xs)
+    when (any (minimatch path) ["**/*.purs", "**/*.js"]) (compile cmd)
 
 main :: EffN Unit
 main = do
   let setup = usage "psc-pane - Auto reloading PureScript compiler\n\nUsage: psc-pane [OPTION]"
               <> help "help" "Show this help"
-              <> example "psc-pane" "Assume a pulp style project layout"
-              <> example "psc-pane -w purs -s 'purs/**/*.purs' -f 'purs/**/*.js'"
-                         "Having .purs and .js sources under 'purs'"
-  let defaultPurs = ["src/**/*.purs", "bower_components/purescript-*/src/**/*.purs"]
-  let defaultFFI = ["src/**/*.js", "bower_components/purescript-*/src/**/*.js"]
   runY setup $
     app
-    <$> yarg "s" ["src"]
-        (Just (".purs source file or glob pattern (default values: "
-              <> (quoteJoin defaultPurs) <> ")"))
-      (Left defaultPurs)
-      true
+    <$> yarg "c" ["command"]
+        (Just "Build command. Should return JSON in stderr. Default: pulp build --no-psa --json-errors")
+        (Left "pulp build --no-psa --json-errors")
+        true
     <*> yarg "w" ["watch-path"]
       (Just  "Directory to watch for changes (default: \"src\")")
       (Left ["src"])
-      true
-    <*> yarg "f" ["ffi"]
-      (Just ("The input .js file(s) providing foreign import implementations (default values: "
-             <> (quoteJoin defaultFFI) <> ")"))
-      (Left defaultFFI)
-      true
-    <*> yarg "o" ["output"]
-      (Just "The output directory (default: \"output\")")
-      (Left "output")
       true

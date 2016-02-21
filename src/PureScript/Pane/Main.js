@@ -4,9 +4,9 @@
 
 var concat = require('concat-stream');
 
-exports.spawn = function (cmd, args, fail, success) {
+exports.spawn = function (cmd, success) {
   return function () {
-    var proc = require('child_process').spawn(cmd, args);
+    var proc = require('child_process').spawn("sh", ["-c", cmd]);
     proc.stderr.pipe(concat(function (buf) {
       success(buf)();
     }));
