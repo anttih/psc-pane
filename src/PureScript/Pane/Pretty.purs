@@ -6,14 +6,11 @@ import Data.String (joinWith, contains, split, trim)
 import Data.String.Regex as R
 import Data.Maybe (Maybe(..), maybe)
 import Data.List (List(..), toList)
-import Ansi.Codes ( EscapeCode(Graphics)
-                  , GraphicsParam(PBackground, PForeground, Reset)
-                  , Color(Black, Green, Yellow, Red, White)
-                  , escapeCodeToString)
 import Node.Path (FilePath, relative)
 
 import PscIde.Command (RebuildError(..))
 import PureScript.Pane.Parser (PscResult(PscResult))
+import PureScript.Pane.Color (green, yellow, red)
 
 type Height = Int
 
@@ -107,21 +104,3 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
     in if (length res) <= height
       then Just res
       else try rest res
-
---
--- Color stuff
---
-
-withColor :: Array GraphicsParam -> String -> String
-withColor params s =
-  escapeCodeToString (Graphics params) <> s <> escapeCodeToString (Graphics [Reset])
-
-green :: String -> String
-green = withColor [PBackground Green, PForeground White]
-
-yellow :: String -> String
-yellow = withColor [PBackground Yellow, PForeground Black]
-
-red :: String -> String
-red = withColor [PBackground Red, PForeground White]
-
