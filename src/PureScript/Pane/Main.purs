@@ -1,43 +1,28 @@
 module PureScript.Pane.Main where
 
-import Prelude ((<*>), (<<<), (<$>), ($), (<>), Unit, bind, unit, pure, const, map)
+import Prelude
 import Control.Monad (when)
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Console (CONSOLE())
-import Control.Monad.Eff.Exception (EXCEPTION())
-import Control.Monad.Aff (Aff(), makeAff, launchAff)
+import Control.Monad.Aff (makeAff, launchAff)
 import Control.Monad.Aff.Console (log)
+import Control.Monad.Eff.Class (liftEff)
+import Data.Either (Either(..), either)
 import Data.Foldable (any, fold)
 import Data.Foreign.Class (readJSON)
-import Data.Either (Either(..), either)
+import Data.Function (Fn2, runFn2)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Maybe.First (First(..), runFirst)
-import Data.Function (Fn2(), runFn2)
 import Data.String (split, trim)
-
-import Node.FS (FS())
-import Node.Buffer (Buffer(), BUFFER(), toString)
+import Node.Buffer (Buffer, toString)
 import Node.Encoding (Encoding(UTF8))
-import Node.Process (PROCESS, cwd)
-
-import Node.Yargs.Setup (usage, help)
+import Node.Process (cwd)
 import Node.Yargs.Applicative (yarg, runY)
-
+import Node.Yargs.Setup (usage, help)
+import PscIde (load, rebuild)
+import PscIde.Command (RebuildError(RebuildError), RebuildResult(RebuildResult))
+import PureScript.Pane.Parser (Position(Position), PscError(PscError), PscResult(PscResult))
 import PureScript.Pane.Pretty (pretty)
-import PureScript.Pane.Parser (PscResult())
-
-type EffN = Eff ( fs :: FS
-                , err :: EXCEPTION
-                , console :: CONSOLE
-                , buffer :: BUFFER
-                , process :: PROCESS)
-
-type AffN = Aff ( fs :: FS
-                , err :: EXCEPTION
-                , console :: CONSOLE
-                , process :: PROCESS
-                , buffer :: BUFFER)
+import PureScript.Pane.Server (startServer, serverRunning)
+import PureScript.Pane.Types (EffN, AffN)
 
 foreign import watch :: Array String -> (String -> EffN Unit) -> EffN Unit
 
@@ -68,8 +53,8 @@ readErr err = findFirst jsonOutput lines
         findFirst :: (String -> Maybe PscResult) -> Array String -> Maybe PscResult
         findFirst f xs = runFirst (fold (map (First <<< f) xs))
 
-compile :: String -> AffN Unit
-compile cmd = do
+compileAll :: String -> AffN Unit
+compileAll cmd = do
   clear
   log "Compiling..."
   buf <- spawnAff cmd
@@ -80,13 +65,52 @@ compile cmd = do
   liftEff $ write (maybe err (pretty dir height) (readErr err))
   pure unit
 
+recompile :: String -> AffN Unit
+recompile path = do
+  clear
+  height <- liftEff rows
+  dir <- liftEff cwd
+  res <- rebuild 4040 path
+  liftEff $ either write (write <<< pretty dir height <<< showErrors) res
+  pure unit
+  where
+    showErrors :: Either RebuildResult RebuildResult -> PscResult
+    showErrors (Right (RebuildResult warnings)) = PscResult { warnings: toPscError <$> warnings
+                                                            , errors: []
+                                                            }
+    showErrors (Left (RebuildResult errors)) = PscResult { warnings: []
+                                                         , errors: toPscError <$> errors
+                                                         }
+
+    toPscError :: RebuildError -> PscError
+    toPscError (RebuildError err) = PscError
+                      { moduleName: err.moduleName
+                      , filename: err.filename
+                      , errorCode: err.errorCode
+                      , message: split "\n" err.message
+                      , position: (\{ line, column } -> Position
+                          { startLine: line
+                          , endLine: 0
+                          , startColumn: column
+                          , endColumn: 0
+                        }) <$> err.position
+                      }
+
+
+
 foreign import rows :: EffN Int
 
 app :: String -> Array String -> EffN Unit
 app cmd dirs = launchAff do
-  compile cmd
+  compileAll cmd
+  running <- serverRunning <$> startServer "psc-ide-server" 4040
+  if running
+    then do
+      res <- load 4040 [] []
+      either log (const (pure unit)) res
+    else log "Could not start psc-ide-server"
   watchAff dirs \path -> do
-    when (any (minimatch path) ["**/*.purs", "**/*.js"]) (compile cmd)
+    when (any (minimatch path) ["**/*.purs", "**/*.js"]) (recompile path)
 
 main :: EffN Unit
 main = do
