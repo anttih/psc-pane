@@ -1,6 +1,6 @@
 module PureScript.Pane.Pretty where
 
-import Prelude (($), (<$>), (<>), show, id, (<<<), not, (/=), (<=), (-))
+import Prelude
 import Data.Array (head, length, null, take, takeWhile, filter)
 import Data.String (joinWith, contains, split, trim)
 import Data.String.Regex as R
@@ -12,7 +12,8 @@ import Ansi.Codes ( EscapeCode(Graphics)
                   , escapeCodeToString)
 import Node.Path (FilePath, relative)
 
-import PureScript.Pane.Parser (Position(Position), PscError(PscError), PscResult(PscResult))
+import PscIde.Command (RebuildError(..))
+import PureScript.Pane.Parser (PscResult(PscResult))
 
 type Height = Int
 
@@ -23,15 +24,15 @@ pretty cwd h (PscResult { warnings: warnings, errors: errors }) = maybe "" id $
     then prettyError cwd h <$> head errors
     else prettyWarning cwd h <$> head warnings
 
-prettyError' :: String -> FilePath -> Height -> PscError -> String
-prettyError' t cwd h (PscError err@{ position }) =
+prettyError' :: String -> FilePath -> Height -> RebuildError -> String
+prettyError' t cwd h (RebuildError err@{ position }) =
   t <> " " <> (filenameOrModule cwd err) <> (prettyPosition position)
-  <> "\n" <> (prettyMessage (h - 1) err.message)
+  <> "\n" <> (prettyMessage (h - 1) (split "\n" err.message))
 
-prettyError :: FilePath -> Height -> PscError -> String
+prettyError :: FilePath -> Height -> RebuildError -> String
 prettyError = prettyError' (red "Error")
 
-prettyWarning :: FilePath -> Height -> PscError -> String
+prettyWarning :: FilePath -> Height -> RebuildError -> String
 prettyWarning = prettyError' (yellow "Warning")
 
 filenameOrModule :: forall xs
@@ -42,9 +43,9 @@ filenameOrModule cwd { filename: Just file } = relative cwd file
 filenameOrModule _ { moduleName: Just moduleName } = moduleName
 filenameOrModule _ _ = ""
 
-prettyPosition :: Maybe Position -> String
-prettyPosition (Just (Position { startLine, startColumn })) =
-  " line " <> (show startLine) <> ", column " <> (show startColumn)
+prettyPosition :: Maybe { line :: Int, column :: Int } -> String
+prettyPosition (Just { line, column }) =
+  " line " <> (show line) <> ", column " <> (show column)
 prettyPosition Nothing = ""
 
 prettyMessage :: Height -> Array String -> String
@@ -91,7 +92,7 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
     where wikiLink = not <<< contains "See https://"
 
   withoutEmptyLines :: Array String -> Array String
-  withoutEmptyLines = filter ((/= "") <<< trim)
+  withoutEmptyLines = filter ((_ /= "") <<< trim)
 
   withoutTypeInfo :: Array String -> Array String
   withoutTypeInfo  = trimLines <<< takeWhile typeInfo

@@ -5,9 +5,10 @@ import Control.Monad (when)
 import Control.Monad.Aff (makeAff, launchAff)
 import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff.Class (liftEff)
+import Data.Argonaut.Parser (jsonParser)
+import Data.Argonaut.Decode (decodeJson)
 import Data.Either (Either(..), either)
 import Data.Foldable (any, fold)
-import Data.Foreign.Class (readJSON)
 import Data.Function (Fn2, runFn2)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Maybe.First (First(..), runFirst)
@@ -18,8 +19,8 @@ import Node.Process (cwd)
 import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, help)
 import PscIde (load, rebuild)
-import PscIde.Command (RebuildError(RebuildError), RebuildResult(RebuildResult))
-import PureScript.Pane.Parser (Position(Position), PscError(PscError), PscResult(PscResult))
+import PscIde.Command (RebuildResult(RebuildResult))
+import PureScript.Pane.Parser (PscResult(PscResult))
 import PureScript.Pane.Pretty (pretty)
 import PureScript.Pane.Server (startServer, serverRunning)
 import PureScript.Pane.Types (EffN, AffN)
@@ -46,12 +47,22 @@ clear = do
   pure unit
 
 readErr :: String -> Maybe PscResult
-readErr err = findFirst jsonOutput lines
-  where lines = split "\n" (trim err)
-        jsonOutput line = either (const Nothing) Just (readJSON line)
+readErr err =
+  let lines = split "\n" (trim err)
+  in findFirst jsonOutput lines
 
-        findFirst :: (String -> Maybe PscResult) -> Array String -> Maybe PscResult
-        findFirst f xs = runFirst (fold (map (First <<< f) xs))
+    where
+    jsonOutput :: String -> Maybe PscResult
+    jsonOutput line = eitherToMaybe do
+      json <- jsonParser line
+      decodeJson json
+
+    eitherToMaybe :: ∀ e a. Either e a -> Maybe a
+    eitherToMaybe (Right a) = Just a
+    eitherToMaybe _ = Nothing
+
+    findFirst :: (String -> Maybe PscResult) -> Array String -> Maybe PscResult
+    findFirst f xs = runFirst (fold (map (First <<< f) xs))
 
 compileAll :: String -> AffN Unit
 compileAll cmd = do
@@ -75,28 +86,8 @@ recompile path = do
   pure unit
   where
     showErrors :: Either RebuildResult RebuildResult -> PscResult
-    showErrors (Right (RebuildResult warnings)) = PscResult { warnings: toPscError <$> warnings
-                                                            , errors: []
-                                                            }
-    showErrors (Left (RebuildResult errors)) = PscResult { warnings: []
-                                                         , errors: toPscError <$> errors
-                                                         }
-
-    toPscError :: RebuildError -> PscError
-    toPscError (RebuildError err) = PscError
-                      { moduleName: err.moduleName
-                      , filename: err.filename
-                      , errorCode: err.errorCode
-                      , message: split "\n" err.message
-                      , position: (\{ line, column } -> Position
-                          { startLine: line
-                          , endLine: 0
-                          , startColumn: column
-                          , endColumn: 0
-                        }) <$> err.position
-                      }
-
-
+    showErrors (Right (RebuildResult warnings)) = PscResult { warnings: warnings , errors: [] }
+    showErrors (Left (RebuildResult errors)) = PscResult { warnings: [] , errors: errors }
 
 foreign import rows :: EffN Int
 
