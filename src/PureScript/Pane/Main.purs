@@ -1,27 +1,31 @@
 module PureScript.Pane.Main where
 
 import Prelude
-import Control.Monad (when)
+import Control.Apply ((*>))
+import Control.Monad (unless, when)
 import Control.Monad.Aff (makeAff, launchAff)
 import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff.Class (liftEff)
-import Data.Argonaut.Parser (jsonParser)
 import Data.Argonaut.Decode (decodeJson)
+import Data.Argonaut.Parser (jsonParser)
+import Data.Array (head, length)
 import Data.Either (Either(..), either)
 import Data.Foldable (any, fold)
 import Data.Function (Fn2, runFn2)
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (isNothing, Maybe(..), maybe)
 import Data.Maybe.First (First(..), runFirst)
 import Data.String (split, trim)
 import Node.Buffer (Buffer, toString)
 import Node.Encoding (Encoding(UTF8))
-import Node.Process (cwd)
+import Node.Path (FilePath)
+import Node.Process (cwd, exit)
 import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, help)
-import PscIde (load, rebuild)
-import PscIde.Command (RebuildResult(RebuildResult))
+import PscIde (load, listLoadedModules, rebuild)
+import PscIde.Command (ModuleList(ModuleList), RebuildResult(RebuildResult))
+import PureScript.Pane.Color (green)
 import PureScript.Pane.Parser (PscResult(PscResult))
-import PureScript.Pane.Pretty (pretty)
+import PureScript.Pane.Pretty (Height, PaneResult(Warning, Error), pretty)
 import PureScript.Pane.Server (startServer, serverRunning)
 import PureScript.Pane.Types (EffN, AffN)
 
@@ -46,6 +50,12 @@ clear = do
   liftEff (write "\x1b[1;1H")
   pure unit
 
+loadModules :: AffN Int
+loadModules = do
+  loaded <- load 4040 [] []
+  modules <- listLoadedModules 4040
+  pure $ either (const 0) (\(ModuleList xs) -> length xs) (loaded *> modules)
+
 readErr :: String -> Maybe PscResult
 readErr err =
   let lines = split "\n" (trim err)
@@ -57,7 +67,7 @@ readErr err =
       json <- jsonParser line
       decodeJson json
 
-    eitherToMaybe :: ∀ e a. Either e a -> Maybe a
+    eitherToMaybe :: forall e a. Either e a -> Maybe a
     eitherToMaybe (Right a) = Just a
     eitherToMaybe _ = Nothing
 
@@ -66,42 +76,59 @@ readErr err =
 
 compileAll :: String -> AffN Unit
 compileAll cmd = do
-  clear
-  log "Compiling..."
   buf <- spawnAff cmd
   height <- liftEff rows
-  clear
   dir <- liftEff cwd
   err <- liftEff (toString UTF8 buf)
-  liftEff $ write (maybe err (pretty dir height) (readErr err))
+  mods <- loadModules
+  clear
+  liftEff $ write (maybe err (showResult dir height mods <<< takeOne) (readErr err))
   pure unit
+    where
+      takeOne :: PscResult -> Maybe PaneResult
+      takeOne (PscResult { warnings: [], errors: [] }) = Nothing
+      takeOne (PscResult { warnings: [], errors: errors }) = Error <$> head errors
+      takeOne (PscResult { warnings: warnings, errors: [] }) = Warning <$> head warnings
+      takeOne (PscResult _) = Nothing
 
-recompile :: String -> AffN Unit
-recompile path = do
+      showResult :: FilePath -> Height -> Int -> Maybe PaneResult -> String
+      showResult dir height _ (Just res) = pretty dir height res
+      showResult _ _ mods Nothing = green "All OK" <> " (loaded " <> (show mods) <> " modules)"
+
+recompile :: String -> String -> AffN Unit
+recompile cmd path = do
   clear
   height <- liftEff rows
   dir <- liftEff cwd
   res <- rebuild 4040 path
-  liftEff $ either write (write <<< pretty dir height <<< showErrors) res
+  either (liftEff <<< write) (\res' -> do
+    let res'' = takeOne res'
+    liftEff $ write (showResult dir height res'')
+    when (isNothing res'') (compileAll cmd)
+  ) res
   pure unit
   where
-    showErrors :: Either RebuildResult RebuildResult -> PscResult
-    showErrors (Right (RebuildResult warnings)) = PscResult { warnings: warnings , errors: [] }
-    showErrors (Left (RebuildResult errors)) = PscResult { warnings: [] , errors: errors }
+    takeOne :: Either RebuildResult RebuildResult -> Maybe PaneResult
+    takeOne (Right (RebuildResult warnings)) = Warning <$> head warnings
+    takeOne (Left (RebuildResult errors)) = Error <$> head errors
+
+    showResult :: FilePath -> Height -> Maybe PaneResult -> String
+    showResult dir height (Just res) = pretty dir height res
+    showResult _ _ Nothing = green "Module OK" <> " " <> path <> " compiling all..."
 
 foreign import rows :: EffN Int
 
 app :: String -> Array String -> EffN Unit
 app cmd dirs = launchAff do
-  compileAll cmd
   running <- serverRunning <$> startServer "psc-ide-server" 4040
-  if running
-    then do
-      res <- load 4040 [] []
-      either log (const (pure unit)) res
-    else log "Could not start psc-ide-server"
+  unless running do
+    log "Cannot start psc-ide-server"
+    liftEff (exit 1)
+  clear
+  log "Compiling..."
+  compileAll cmd
   watchAff dirs \path -> do
-    when (any (minimatch path) ["**/*.purs", "**/*.js"]) (recompile path)
+    when (any (minimatch path) ["**/*.purs", "**/*.js"]) (recompile cmd path)
 
 main :: EffN Unit
 main = do

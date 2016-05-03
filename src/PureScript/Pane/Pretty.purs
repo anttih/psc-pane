@@ -1,7 +1,7 @@
 module PureScript.Pane.Pretty where
 
 import Prelude
-import Data.Array (head, length, null, take, takeWhile, filter)
+import Data.Array (length, take, takeWhile, filter)
 import Data.String (joinWith, contains, split, trim)
 import Data.String.Regex as R
 import Data.Maybe (Maybe(..), maybe)
@@ -9,28 +9,20 @@ import Data.List (List(..), toList)
 import Node.Path (FilePath, relative)
 
 import PscIde.Command (RebuildError(..))
-import PureScript.Pane.Parser (PscResult(PscResult))
-import PureScript.Pane.Color (green, yellow, red)
+import PureScript.Pane.Color (yellow, red)
 
 type Height = Int
 
-pretty :: FilePath -> Height -> PscResult -> String
-pretty cwd h (PscResult { warnings: [], errors: [] }) = green "All good"
-pretty cwd h (PscResult { warnings: warnings, errors: errors }) = maybe "" id $
-  if not (null errors)
-    then prettyError cwd h <$> head errors
-    else prettyWarning cwd h <$> head warnings
+data PaneResult = Warning RebuildError | Error RebuildError
+
+pretty :: FilePath -> Height -> PaneResult -> String
+pretty cwd h (Warning warn) = prettyError' (yellow "Warning") cwd h warn
+pretty cwd h (Error err) = prettyError' (red "Error") cwd h err
 
 prettyError' :: String -> FilePath -> Height -> RebuildError -> String
 prettyError' t cwd h (RebuildError err@{ position }) =
   t <> " " <> (filenameOrModule cwd err) <> (prettyPosition position)
   <> "\n" <> (prettyMessage (h - 1) (split "\n" err.message))
-
-prettyError :: FilePath -> Height -> RebuildError -> String
-prettyError = prettyError' (red "Error")
-
-prettyWarning :: FilePath -> Height -> RebuildError -> String
-prettyWarning = prettyError' (yellow "Warning")
 
 filenameOrModule :: forall xs
   . FilePath
