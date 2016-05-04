@@ -1,4 +1,4 @@
-module PureScript.Pane.Main where
+module PscPane.Main where
 
 import Prelude
 import Control.Apply ((*>))
@@ -23,11 +23,11 @@ import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, help)
 import PscIde (load, listLoadedModules, rebuild)
 import PscIde.Command (ModuleList(ModuleList), RebuildResult(RebuildResult))
-import PureScript.Pane.Color (green)
-import PureScript.Pane.Parser (PscResult(PscResult))
-import PureScript.Pane.Pretty (Height, PaneResult(Warning, Error), pretty)
-import PureScript.Pane.Server (startServer, serverRunning)
-import PureScript.Pane.Types (EffN, AffN)
+import PscPane.Color (green)
+import PscPane.Parser (PscResult(PscResult))
+import PscPane.Pretty (Height, PaneResult(Warning, Error), pretty)
+import PscPane.Server (startServer, serverRunning)
+import PscPane.Types (EffN, AffN)
 
 foreign import watch :: Array String -> (String -> EffN Unit) -> EffN Unit
 

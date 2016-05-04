@@ -1,4 +1,4 @@
-module PureScript.Pane.Pretty where
+module PscPane.Pretty where
 
 import Prelude
 import Data.Array (length, take, takeWhile, filter)
@@ -9,7 +9,7 @@ import Data.List (List(..), toList)
 import Node.Path (FilePath, relative)
 
 import PscIde.Command (RebuildError(..))
-import PureScript.Pane.Color (yellow, red)
+import PscPane.Color (yellow, red)
 
 type Height = Int
 

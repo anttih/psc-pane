@@ -1,4 +1,4 @@
-module PureScript.Pane.Types where
+module PscPane.Types where
 
 import Control.Monad.Aff (Aff)
 import Control.Monad.Aff.AVar (AVAR)

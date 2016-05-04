@@ -1,4 +1,4 @@
-module PureScript.Pane.Color where
+module PscPane.Color where
 
 import Prelude
 import Ansi.Codes ( EscapeCode(Graphics)

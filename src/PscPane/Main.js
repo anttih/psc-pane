@@ -1,4 +1,4 @@
-// module PureScript.Pane.Main
+// module PscPane.Main
 
 "use strict";
 

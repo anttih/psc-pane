@@ -1,4 +1,4 @@
-module PureScript.Pane.Server
+module PscPane.Server
   ( ServerStartResult(..)
   , startServer
   , serverRunning
@@ -10,7 +10,7 @@ import Control.Monad.Aff (later', makeAff)
 import Control.Monad.Aff.Par (Par(Par), runPar)
 import Control.Monad.Eff.Class (liftEff)
 import Node.ChildProcess (Exit(Normally), onClose, onError, defaultSpawnOptions, spawn, ChildProcess)
-import PureScript.Pane.Types (AffN)
+import PscPane.Types (AffN)
 
 data ServerStartResult = Started ChildProcess
                        | Closed

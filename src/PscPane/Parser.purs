@@ -1,4 +1,4 @@
-module PureScript.Pane.Parser where
+module PscPane.Parser where
 
 import Data.Argonaut.Combinators ((.?))
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
