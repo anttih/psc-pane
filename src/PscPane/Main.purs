@@ -74,8 +74,8 @@ readErr err =
     findFirst :: (String -> Maybe PscResult) -> Array String -> Maybe PscResult
     findFirst f xs = runFirst (fold (map (First <<< f) xs))
 
-compileAll :: Int -> String -> AffN Unit
-compileAll port cmd = do
+runBuildCmd :: Int -> String -> AffN Unit
+runBuildCmd port cmd = do
   buf <- spawnAff cmd
   height <- liftEff rows
   dir <- liftEff cwd
@@ -95,8 +95,8 @@ compileAll port cmd = do
       showResult dir height _ (Just res) = pretty dir height res
       showResult _ _ mods Nothing = green "Build successful" <> " (loaded " <> (show mods) <> " modules)"
 
-recompile :: Int -> String -> String -> AffN Unit
-recompile port cmd path = do
+rebuildModule :: Int -> String -> String -> AffN Unit
+rebuildModule port cmd path = do
   clear
   height <- liftEff rows
   dir <- liftEff cwd
@@ -104,7 +104,7 @@ recompile port cmd path = do
   either (liftEff <<< write) (\res' -> do
     let res'' = takeOne res'
     liftEff $ write (showResult dir height res'')
-    when (isNothing res'') (compileAll port cmd)
+    when (isNothing res'') (runBuildCmd port cmd)
   ) res
   pure unit
   where
@@ -118,6 +118,12 @@ recompile port cmd path = do
 
 foreign import rows :: EffN Int
 
+build :: Int -> String -> AffN Unit
+build port cmd = do
+  clear
+  log "Building project..."
+  runBuildCmd port cmd
+
 app :: String -> Array String -> EffN Unit
 app cmd dirs = launchAff do
   let port = 4040
@@ -125,11 +131,10 @@ app cmd dirs = launchAff do
   unless running do
     log "Cannot start psc-ide-server"
     liftEff (exit 1)
-  clear
-  log "Building project..."
-  compileAll port cmd
+  build port cmd
   watchAff dirs \path -> do
-    when (any (minimatch path) ["**/*.purs", "**/*.js"]) (recompile port cmd path)
+    when (any (minimatch path) ["**/*.purs"]) (rebuildModule port cmd path)
+    when (any (minimatch path) ["**/*.js"]) (build port cmd)
 
 main :: EffN Unit
 main = do
