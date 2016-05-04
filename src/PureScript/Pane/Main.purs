@@ -93,7 +93,7 @@ compileAll port cmd = do
 
       showResult :: FilePath -> Height -> Int -> Maybe PaneResult -> String
       showResult dir height _ (Just res) = pretty dir height res
-      showResult _ _ mods Nothing = green "All OK" <> " (loaded " <> (show mods) <> " modules)"
+      showResult _ _ mods Nothing = green "Build successful" <> " (loaded " <> (show mods) <> " modules)"
 
 recompile :: Int -> String -> String -> AffN Unit
 recompile port cmd path = do
@@ -114,7 +114,7 @@ recompile port cmd path = do
 
     showResult :: FilePath -> Height -> Maybe PaneResult -> String
     showResult dir height (Just res) = pretty dir height res
-    showResult _ _ Nothing = green "Module OK" <> " " <> path <> " (building project…)"
+    showResult _ _ Nothing = green "Module OK" <> " " <> path <> " (building project...)"
 
 foreign import rows :: EffN Int
 
@@ -126,7 +126,7 @@ app cmd dirs = launchAff do
     log "Cannot start psc-ide-server"
     liftEff (exit 1)
   clear
-  log "Compiling..."
+  log "Building project..."
   compileAll port cmd
   watchAff dirs \path -> do
     when (any (minimatch path) ["**/*.purs", "**/*.js"]) (recompile port cmd path)
