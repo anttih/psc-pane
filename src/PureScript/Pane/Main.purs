@@ -50,10 +50,10 @@ clear = do
   liftEff (write "\x1b[1;1H")
   pure unit
 
-loadModules :: AffN Int
-loadModules = do
-  loaded <- load 4040 [] []
-  modules <- listLoadedModules 4040
+loadModules :: Int -> AffN Int
+loadModules port = do
+  loaded <- load port [] []
+  modules <- listLoadedModules port
   pure $ either (const 0) (\(ModuleList xs) -> length xs) (loaded *> modules)
 
 readErr :: String -> Maybe PscResult
@@ -74,13 +74,13 @@ readErr err =
     findFirst :: (String -> Maybe PscResult) -> Array String -> Maybe PscResult
     findFirst f xs = runFirst (fold (map (First <<< f) xs))
 
-compileAll :: String -> AffN Unit
-compileAll cmd = do
+compileAll :: Int -> String -> AffN Unit
+compileAll port cmd = do
   buf <- spawnAff cmd
   height <- liftEff rows
   dir <- liftEff cwd
   err <- liftEff (toString UTF8 buf)
-  mods <- loadModules
+  mods <- loadModules port
   clear
   liftEff $ write (maybe err (showResult dir height mods <<< takeOne) (readErr err))
   pure unit
@@ -95,16 +95,16 @@ compileAll cmd = do
       showResult dir height _ (Just res) = pretty dir height res
       showResult _ _ mods Nothing = green "All OK" <> " (loaded " <> (show mods) <> " modules)"
 
-recompile :: String -> String -> AffN Unit
-recompile cmd path = do
+recompile :: Int -> String -> String -> AffN Unit
+recompile port cmd path = do
   clear
   height <- liftEff rows
   dir <- liftEff cwd
-  res <- rebuild 4040 path
+  res <- rebuild port path
   either (liftEff <<< write) (\res' -> do
     let res'' = takeOne res'
     liftEff $ write (showResult dir height res'')
-    when (isNothing res'') (compileAll cmd)
+    when (isNothing res'') (compileAll port cmd)
   ) res
   pure unit
   where
@@ -114,21 +114,22 @@ recompile cmd path = do
 
     showResult :: FilePath -> Height -> Maybe PaneResult -> String
     showResult dir height (Just res) = pretty dir height res
-    showResult _ _ Nothing = green "Module OK" <> " " <> path <> " compiling all..."
+    showResult _ _ Nothing = green "Module OK" <> " " <> path <> " (building project…)"
 
 foreign import rows :: EffN Int
 
 app :: String -> Array String -> EffN Unit
 app cmd dirs = launchAff do
-  running <- serverRunning <$> startServer "psc-ide-server" 4040
+  let port = 4040
+  running <- serverRunning <$> startServer "psc-ide-server" port
   unless running do
     log "Cannot start psc-ide-server"
     liftEff (exit 1)
   clear
   log "Compiling..."
-  compileAll cmd
+  compileAll port cmd
   watchAff dirs \path -> do
-    when (any (minimatch path) ["**/*.purs", "**/*.js"]) (recompile cmd path)
+    when (any (minimatch path) ["**/*.purs", "**/*.js"]) (recompile port cmd path)
 
 main :: EffN Unit
 main = do
