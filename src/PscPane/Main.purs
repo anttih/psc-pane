@@ -12,7 +12,7 @@ import Data.Array (head, length)
 import Data.Either (Either(..), either)
 import Data.Foldable (any, fold)
 import Data.Function (Fn2, runFn2)
-import Data.Maybe (isNothing, Maybe(..), maybe)
+import Data.Maybe (Maybe(..), maybe, isNothing)
 import Data.Maybe.First (First(..), runFirst)
 import Data.String (split, trim)
 import Node.Buffer (Buffer, toString)
@@ -22,11 +22,11 @@ import Node.Process (cwd, exit)
 import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, help)
 import PscIde (load, listLoadedModules, rebuild)
+import PscIde.Server (ServerStartResult(..), startServer)
 import PscIde.Command (ModuleList(ModuleList), RebuildResult(RebuildResult))
 import PscPane.Color (green)
 import PscPane.Parser (PscResult(PscResult))
 import PscPane.Pretty (Height, PaneResult(Warning, Error), pretty)
-import PscPane.Server (startServer, serverRunning)
 import PscPane.Types (EffN, AffN)
 
 foreign import watch :: Array String -> (String -> EffN Unit) -> EffN Unit
@@ -74,11 +74,10 @@ readErr err =
     findFirst :: (String -> Maybe PscResult) -> Array String -> Maybe PscResult
     findFirst f xs = runFirst (fold (map (First <<< f) xs))
 
-runBuildCmd :: Int -> String -> AffN Unit
-runBuildCmd port cmd = do
+runBuildCmd :: Int -> String -> String -> AffN Unit
+runBuildCmd port dir cmd = do
   buf <- spawnAff cmd
   height <- liftEff rows
-  dir <- liftEff cwd
   err <- liftEff (toString UTF8 buf)
   mods <- loadModules port
   clear
@@ -95,16 +94,15 @@ runBuildCmd port cmd = do
       showResult dir height _ (Just res) = pretty dir height res
       showResult _ _ mods Nothing = green "Build successful" <> " (loaded " <> (show mods) <> " modules)"
 
-rebuildModule :: Int -> String -> String -> AffN Unit
-rebuildModule port cmd path = do
+rebuildModule :: Int -> String -> String -> String -> AffN Unit
+rebuildModule port dir cmd path = do
   clear
   height <- liftEff rows
-  dir <- liftEff cwd
   res <- rebuild port path
   either (liftEff <<< write) (\res' -> do
     let res'' = takeOne res'
     liftEff $ write (showResult dir height res'')
-    when (isNothing res'') (runBuildCmd port cmd)
+    when (isNothing res'') (runBuildCmd port dir cmd)
   ) res
   pure unit
   where
@@ -118,23 +116,28 @@ rebuildModule port cmd path = do
 
 foreign import rows :: EffN Int
 
-build :: Int -> String -> AffN Unit
-build port cmd = do
+build :: Int -> String -> String -> AffN Unit
+build port dir cmd = do
   clear
   log "Building project..."
-  runBuildCmd port cmd
+  runBuildCmd port dir cmd
+
+serverRunning ∷ ServerStartResult → Boolean
+serverRunning (Started _) = true
+serverRunning _ = false
 
 app :: String -> Array String -> EffN Unit
 app cmd dirs = launchAff do
   let port = 4040
-  running <- serverRunning <$> startServer "psc-ide-server" port
+  dir <- liftEff cwd
+  running <- serverRunning <$> startServer "psc-ide-server" port (Just dir)
   unless running do
     log "Cannot start psc-ide-server"
     liftEff (exit 1)
-  build port cmd
+  build port dir cmd
   watchAff dirs \path -> do
-    when (any (minimatch path) ["**/*.purs"]) (rebuildModule port cmd path)
-    when (any (minimatch path) ["**/*.js"]) (build port cmd)
+    when (any (minimatch path) ["**/*.purs"]) (rebuildModule port dir cmd path)
+    when (any (minimatch path) ["**/*.js"]) (build port dir cmd)
 
 main :: EffN Unit
 main = do
