@@ -2,7 +2,7 @@ module PscPane.Main where
 
 import Prelude
 import Control.Apply ((*>))
-import Control.Monad (unless, when)
+import Control.Monad (when)
 import Control.Monad.Aff (makeAff, launchAff)
 import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff.Class (liftEff)
@@ -22,11 +22,11 @@ import Node.Process (cwd, exit)
 import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, help)
 import PscIde (load, listLoadedModules, rebuild)
-import PscIde.Server (ServerStartResult(..), startServer)
 import PscIde.Command (ModuleList(ModuleList), RebuildResult(RebuildResult))
 import PscPane.Color (green)
 import PscPane.Parser (PscResult(PscResult))
 import PscPane.Pretty (Height, PaneResult(Warning, Error), pretty)
+import PscPane.Server (startPscIdeServer)
 import PscPane.Types (EffN, AffN)
 
 foreign import watch :: Array String -> (String -> EffN Unit) -> EffN Unit
@@ -122,22 +122,23 @@ build port dir cmd = do
   log "Building project..."
   runBuildCmd port dir cmd
 
-serverRunning ∷ ServerStartResult → Boolean
-serverRunning (Started _) = true
-serverRunning _ = false
-
 app :: String -> Array String -> EffN Unit
 app cmd dirs = launchAff do
-  let port = 4040
   dir <- liftEff cwd
-  running <- serverRunning <$> startServer "psc-ide-server" port (Just dir)
-  unless running do
-    log "Cannot start psc-ide-server"
-    liftEff (exit 1)
-  build port dir cmd
-  watchAff dirs \path -> do
-    when (any (minimatch path) ["**/*.purs"]) (rebuildModule port dir cmd path)
-    when (any (minimatch path) ["**/*.js"]) (build port dir cmd)
+  running <- startPscIdeServer dir
+  maybe quit (\port -> do
+    build port dir cmd
+    watchAff dirs \path -> do
+      when (any (minimatch path) ["**/*.purs"]) (rebuildModule port dir cmd path)
+      -- Changing a .js file triggers a full build for now. Should we just
+      -- build and load the purs file?
+      when (any (minimatch path) ["**/*.js"]) (build port dir cmd)
+  ) running
+  where
+    quit :: AffN Unit
+    quit = do
+      log "Cannot start psc-ide-server"
+      liftEff (exit 1)
 
 main :: EffN Unit
 main = do
