@@ -28,12 +28,7 @@ import PscPane.Parser (PscResult(PscResult))
 import PscPane.Pretty (Height, PaneResult(Warning, Error), pretty)
 import PscPane.Server (startPscIdeServer)
 import PscPane.Types (EffN, AffN)
-
-foreign import watch :: Array String -> (String -> EffN Unit) -> EffN Unit
-
-watchAff :: Array String -> (String -> AffN Unit) -> AffN Unit
-watchAff dirs callback =
-  liftEff (watch dirs (\path -> launchAff (callback path)))
+import PscPane.Watcher (watchAff)
 
 foreign import minimatch :: String -> String -> Boolean
 
