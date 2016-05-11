@@ -6,6 +6,7 @@ import Control.Monad (when)
 import Control.Monad.Aff (makeAff, launchAff)
 import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff.Class (liftEff)
+import Data.List (range)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array (head, length)
@@ -120,7 +121,7 @@ build port dir cmd = do
 app :: String -> Array String -> EffN Unit
 app cmd dirs = launchAff do
   dir <- liftEff cwd
-  running <- startPscIdeServer dir
+  running <- startPscIdeServer dir (range 4242 4252)
   maybe quit (\port -> do
     build port dir cmd
     watchAff dirs \path -> do
