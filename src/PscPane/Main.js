@@ -1,4 +1,4 @@
-// module PureScript.Pane.Main
+// module PscPane.Main
 
 "use strict";
 
@@ -10,19 +10,6 @@ exports.spawn = function (cmd, success) {
     proc.stderr.pipe(concat(function (buf) {
       success(buf)();
     }));
-  };
-};
-
-exports.watch = function watch(dirs) {
-  return function(act) {
-    return function() {
-      var Watchpack = require("watchpack");
-      var watchpack = new Watchpack();
-      watchpack.watch([], dirs, Date.now());
-      watchpack.on("change", function(path) {
-        act(path)();
-      });
-    };
   };
 };
 

@@ -1,38 +1,28 @@
-module PureScript.Pane.Pretty where
+module PscPane.Pretty where
 
-import Prelude (($), (<$>), (<>), show, id, (<<<), not, (/=), (<=), (-))
-import Data.Array (head, length, null, take, takeWhile, filter)
+import Prelude
+import Data.Array (length, take, takeWhile, filter)
 import Data.String (joinWith, contains, split, trim)
 import Data.String.Regex as R
 import Data.Maybe (Maybe(..), maybe)
 import Data.List (List(..), toList)
-import Ansi.Codes ( EscapeCode(Graphics)
-                  , GraphicsParam(PBackground, PForeground, Reset)
-                  , Color(Black, Green, Yellow, Red, White)
-                  , escapeCodeToString)
 import Node.Path (FilePath, relative)
 
-import PureScript.Pane.Parser (Position(Position), PscError(PscError), PscResult(PscResult))
+import PscIde.Command (RebuildError(..))
+import PscPane.Color (yellow, red)
 
 type Height = Int
 
-pretty :: FilePath -> Height -> PscResult -> String
-pretty cwd h (PscResult { warnings: [], errors: [] }) = green "All good"
-pretty cwd h (PscResult { warnings: warnings, errors: errors }) = maybe "" id $
-  if not (null errors)
-    then prettyError cwd h <$> head errors
-    else prettyWarning cwd h <$> head warnings
+data PaneResult = Warning RebuildError | Error RebuildError
 
-prettyError' :: String -> FilePath -> Height -> PscError -> String
-prettyError' t cwd h (PscError err@{ position }) =
+pretty :: FilePath -> Height -> PaneResult -> String
+pretty cwd h (Warning warn) = prettyError' (yellow "Warning") cwd h warn
+pretty cwd h (Error err) = prettyError' (red "Error") cwd h err
+
+prettyError' :: String -> FilePath -> Height -> RebuildError -> String
+prettyError' t cwd h (RebuildError err@{ position }) =
   t <> " " <> (filenameOrModule cwd err) <> (prettyPosition position)
-  <> "\n" <> (prettyMessage (h - 1) err.message)
-
-prettyError :: FilePath -> Height -> PscError -> String
-prettyError = prettyError' (red "Error")
-
-prettyWarning :: FilePath -> Height -> PscError -> String
-prettyWarning = prettyError' (yellow "Warning")
+  <> "\n" <> (prettyMessage (h - 1) (split "\n" err.message))
 
 filenameOrModule :: forall xs
   . FilePath
@@ -42,9 +32,9 @@ filenameOrModule cwd { filename: Just file } = relative cwd file
 filenameOrModule _ { moduleName: Just moduleName } = moduleName
 filenameOrModule _ _ = ""
 
-prettyPosition :: Maybe Position -> String
-prettyPosition (Just (Position { startLine, startColumn })) =
-  " line " <> (show startLine) <> ", column " <> (show startColumn)
+prettyPosition :: Maybe { line :: Int, column :: Int } -> String
+prettyPosition (Just { line, column }) =
+  " line " <> (show line) <> ", column " <> (show column)
 prettyPosition Nothing = ""
 
 prettyMessage :: Height -> Array String -> String
@@ -91,7 +81,7 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
     where wikiLink = not <<< contains "See https://"
 
   withoutEmptyLines :: Array String -> Array String
-  withoutEmptyLines = filter ((/= "") <<< trim)
+  withoutEmptyLines = filter ((_ /= "") <<< trim)
 
   withoutTypeInfo :: Array String -> Array String
   withoutTypeInfo  = trimLines <<< takeWhile typeInfo
@@ -106,21 +96,3 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
     in if (length res) <= height
       then Just res
       else try rest res
-
---
--- Color stuff
---
-
-withColor :: Array GraphicsParam -> String -> String
-withColor params s =
-  escapeCodeToString (Graphics params) <> s <> escapeCodeToString (Graphics [Reset])
-
-green :: String -> String
-green = withColor [PBackground Green, PForeground White]
-
-yellow :: String -> String
-yellow = withColor [PBackground Yellow, PForeground Black]
-
-red :: String -> String
-red = withColor [PBackground Red, PForeground White]
-

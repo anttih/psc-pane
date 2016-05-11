@@ -13,13 +13,16 @@
   "dependencies": {
     "purescript-console": "^0.1.0",
     "purescript-yargs": "~0.7.1",
-    "purescript-aff": "~0.13.1",
-    "purescript-node-fs": "~0.9.2",
-    "purescript-node-process": "~0.2.0",
-    "purescript-node-streams": "~0.3.0",
+    "purescript-aff": "~0.16.0",
+    "purescript-node-fs": "~0.11.0",
+    "purescript-node-process": "~0.5.0",
+    "purescript-node-streams": "~0.4.0",
     "purescript-foreign": "~0.7.2",
     "purescript-lists": "~0.7.7",
     "purescript-ansi": "~0.1.2",
-    "purescript-node-path": "~0.4.1"
+    "purescript-node-path": "~0.4.1",
+    "purescript-node-child-process": "~0.6.1",
+    "purescript-psc-ide": "~2.1.0",
+    "purescript-argonaut-codecs": "~0.6.1"
   }
 }
