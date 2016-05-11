@@ -23,6 +23,6 @@
     "concat-stream": "^1.5.1",
     "minimatch": "^3.0.0",
     "watchpack": "^0.2.9",
-    "yargs": "^3.31.0"
+    "yargs": "^4.7.0"
   }
 }

@@ -21,7 +21,7 @@ import Node.Encoding (Encoding(UTF8))
 import Node.Path (FilePath)
 import Node.Process (cwd, exit)
 import Node.Yargs.Applicative (yarg, runY)
-import Node.Yargs.Setup (usage, help)
+import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde (load, listLoadedModules, rebuild)
 import PscIde.Command (ModuleList(ModuleList), RebuildResult(RebuildResult))
 import PscPane.Color (green)
@@ -139,7 +139,8 @@ app cmd dirs = launchAff do
 main :: EffN Unit
 main = do
   let setup = usage "psc-pane - Auto reloading PureScript compiler\n\nUsage: psc-pane [OPTION]"
-              <> help "help" "Show this help"
+              <> defaultHelp
+              <> defaultVersion
   runY setup $
     app
     <$> yarg "c" ["command"]
