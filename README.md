@@ -9,6 +9,8 @@ the output is made to fit the window (only height currently).
 
 ### Installation
 
+Requires version 0.8.5 or higher of the purescript compiler.
+
 ```
 npm install pulp psc-pane -g
 ```
