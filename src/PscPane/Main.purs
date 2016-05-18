@@ -92,9 +92,9 @@ runBuildCmd port dir cmd = do
 
 rebuildModule :: Int -> String -> String -> String -> AffN Unit
 rebuildModule port dir cmd path = do
-  clear
   height <- liftEff rows
   res <- rebuild port path
+  clear
   either (liftEff <<< write) (\res' -> do
     let res'' = takeOne res'
     liftEff $ write (showResult dir height res'')
