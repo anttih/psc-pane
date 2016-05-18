@@ -84,7 +84,7 @@ runBuildCmd port dir cmd = do
       takeOne (PscResult { warnings: [], errors: [] }) = Nothing
       takeOne (PscResult { warnings: [], errors: errors }) = Error <$> head errors
       takeOne (PscResult { warnings: warnings, errors: [] }) = Warning <$> head warnings
-      takeOne (PscResult _) = Nothing
+      takeOne (PscResult { warnings: _, errors: errors }) = Error <$> head errors
 
       showResult :: FilePath -> Height -> Int -> Maybe PaneResult -> String
       showResult dir height _ (Just res) = pretty dir height res
