@@ -1,11 +1,12 @@
 module PscPane.Pretty where
 
 import Prelude
+import Data.Either (Either(Right))
 import Data.Array (length, take, takeWhile, filter)
 import Data.String (joinWith, contains, split, trim)
 import Data.String.Regex as R
 import Data.Maybe (Maybe(..), maybe)
-import Data.List (List(..), toList)
+import Data.List (List(..), fromFoldable)
 import Node.Path (FilePath, relative)
 
 import PscIde.Command (RebuildError(..))
@@ -47,14 +48,14 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
 
   -- | Our fitting strategy
   fitted :: Array String -> Maybe (Array String)
-  fitted lines = try (toList [ id
-                             , trimLines
-                             , withoutExtraLines
-                             , withoutWikiLink
-                             , withoutEmptyLines
-                             , withoutTypeInfo
-                             , take height
-                             ]) lines
+  fitted lines = try (fromFoldable [ id
+                                   , trimLines
+                                   , withoutExtraLines
+                                   , withoutWikiLink
+                                   , withoutEmptyLines
+                                   , withoutTypeInfo
+                                   , take height
+                                   ]) lines
 
   trimLines :: Array String -> Array String
   trimLines lines = replace (R.regex "^\n+|\n+$" flags) "" lines
@@ -73,8 +74,9 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
                   , sticky: false
                   , unicode: false }
 
-  replace :: R.Regex -> String -> Array String -> Array String
-  replace regex s lines = split "\n" (R.replace regex s (joinWith "\n" lines))
+  replace :: Either String R.Regex -> String -> Array String -> Array String
+  replace (Right regex) s lines = split "\n" (R.replace regex s (joinWith "\n" lines))
+  replace _ _ lines = lines
 
   withoutWikiLink :: Array String -> Array String
   withoutWikiLink = trimLines <<< takeWhile wikiLink

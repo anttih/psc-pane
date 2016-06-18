@@ -1,8 +1,7 @@
 module PscPane.Parser where
 
-import Data.Argonaut.Combinators ((.?))
-import Data.Argonaut.Decode (class DecodeJson, decodeJson)
-import Prelude (($), bind, pure)
+import Prelude
+import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.?))
 import PscIde.Command (RebuildError)
 
 newtype PscResult = PscResult
@@ -10,7 +9,7 @@ newtype PscResult = PscResult
   , errors :: Array RebuildError
   }
 
-instance isForeignPscResult :: DecodeJson PscResult where
+instance isDecodeJsonPscResult :: DecodeJson PscResult where
   decodeJson json = do
     j <- decodeJson json
     warnings <- j .? "warnings"
