@@ -10,7 +10,7 @@
     "psc-pane": "index.js"
   },
   "scripts": {
-    "psc": "psc -f 'src/**/*.js' -f 'bower_components/purescript-*/src/**/*.js' 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
+    "psc": "psc 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
     "psc-bundle": "psc-bundle \"output/*/*.js\" --output psc-pane.js --module PscPane.Main --main PscPane.Main",
     "psc-pane": "npm run build && ./index.js",
     "build": "npm run psc && npm run psc-bundle",

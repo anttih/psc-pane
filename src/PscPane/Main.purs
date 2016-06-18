@@ -2,9 +2,9 @@ module PscPane.Main where
 
 import Prelude
 import Control.Apply ((*>))
-import Control.Monad (when)
-import Control.Monad.Aff (makeAff, launchAff)
+import Control.Monad.Aff (makeAff, runAff)
 import Control.Monad.Aff.Console (log)
+import Control.Monad.Eff.Console (logShow)
 import Control.Monad.Eff.Class (liftEff)
 import Data.List (range)
 import Data.Argonaut.Decode (decodeJson)
@@ -12,7 +12,7 @@ import Data.Argonaut.Parser (jsonParser)
 import Data.Array (head, length)
 import Data.Either (Either(..), either)
 import Data.Foldable (any, fold)
-import Data.Function (Fn2, runFn2)
+import Data.Function.Uncurried (Fn2, runFn2)
 import Data.Maybe (Maybe(..), maybe, isNothing)
 import Data.Maybe.First (First(..), runFirst)
 import Data.String (split, trim)
@@ -119,7 +119,7 @@ build port dir cmd = do
   runBuildCmd port dir cmd
 
 app :: String -> Array String -> EffN Unit
-app cmd dirs = launchAff do
+app cmd dirs = runAff logShow pure do
   dir <- liftEff cwd
   running <- startPscIdeServer dir (range 4242 4252)
   maybe quit (\port -> do
@@ -144,8 +144,9 @@ main = do
   runY setup $
     app
     <$> yarg "c" ["command"]
-        (Just "Build command. Should return JSON in stderr. Default: pulp build --no-psa --json-errors")
-        (Left "pulp build --no-psa --json-errors")
+        (Just ("Build command. Should return JSON in stderr. "
+          <> "Default:  psc 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs' --json-errors"))
+        (Left "psc 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs' --json-errors")
         true
     <*> yarg "w" ["watch-path"]
       (Just  "Directory to watch for changes (default: \"src\")")

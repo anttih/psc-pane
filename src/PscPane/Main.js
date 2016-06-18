@@ -1,5 +1,3 @@
-// module PscPane.Main
-
 "use strict";
 
 var concat = require('concat-stream');
