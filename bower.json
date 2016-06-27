@@ -23,5 +23,8 @@
     "purescript-node-child-process": "purescript-node/purescript-node-child-process#1.0-updates",
     "purescript-psc-ide": "^3.0.0",
     "purescript-argonaut-codecs": "^1.0.0"
+  },
+  "devDependencies": {
+    "purescript-spec": "~0.8.0"
   }
 }
