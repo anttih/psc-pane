@@ -5,10 +5,7 @@ import Data.Maybe (Maybe(..), isNothing)
 import PscIde.Server (ServerStartResult(..), startServer')
 import PscPane.Types (AffN)
 import Data.List (List(Cons, Nil))
-import Node.Process (stderr)
-import Node.ChildProcess (StdIOBehaviour(Ignore, ShareStream))
-import Node.Stream (Stream)
-import Unsafe.Coerce (unsafeCoerce)
+import Node.ChildProcess (ignore)
 
 startPscIdeServer :: String -> List Int -> AffN (Maybe Int)
 startPscIdeServer dir ports = go ports
@@ -21,13 +18,7 @@ startPscIdeServer dir ports = go ports
 
   startOnPort :: Int -> AffN (Maybe Int)
   startOnPort port =
-    serverRunning port <$> startServer' stdio "psc-ide-server" port (Just dir)
-      where
-      stdio = map Just [ Ignore
-                       , Ignore
-                       , ShareStream (unsafeCoerce stderr :: forall r eff. Stream r eff)
-                       ]
-
+    serverRunning port <$> startServer' ignore "psc-ide-server" port (Just dir)
 
 serverRunning ∷ Int -> ServerStartResult → Maybe Int
 serverRunning port (Started _) = Just port
