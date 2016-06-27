@@ -5,6 +5,7 @@ import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
+import Control.Monad.Eff.Ref (REF)
 import Node.Buffer (BUFFER)
 import Node.ChildProcess (CHILD_PROCESS)
 import Node.FS (FS)
@@ -19,6 +20,7 @@ type EffN = Eff ( fs :: FS
                 , cp :: CHILD_PROCESS
                 , avar :: AVAR
                 , net :: NET
+                , ref :: REF
                 )
 
 type AffN = Aff ( fs :: FS
@@ -29,4 +31,5 @@ type AffN = Aff ( fs :: FS
                 , cp :: CHILD_PROCESS
                 , avar :: AVAR
                 , net :: NET
+                , ref :: REF
                 )
