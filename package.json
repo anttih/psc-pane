@@ -2,7 +2,7 @@
   "name": "psc-pane",
   "author": "Antti Holvikari <anttih@gmail.com>",
   "license": "LGPL-3.0",
-  "version": "0.4.1",
+  "version": "1.0.0",
   "description": "Auto reloading PureScript compiler",
   "main": "psc-pane.js",
   "repository": "https://github.com/anttih/psc-pane",
