@@ -17,12 +17,6 @@ exports.minimatch = function(str) {
   };
 };
 
-exports.write = function (str) {
-  return function () {
-    process.stdout.write(str);
-  };
-};
-
 exports.rows = function () {
   if (process.stdout.isTTY) {
     return process.stdout.rows;

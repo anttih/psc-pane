@@ -24,6 +24,7 @@ import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde (load, listLoadedModules, rebuild)
 import PscIde.Command (ModuleList(ModuleList), RebuildResult(RebuildResult))
+import PscPane.Output (clear, display, write)
 import PscPane.Color (green)
 import PscPane.Parser (PscResult(PscResult))
 import PscPane.Pretty (Height, PaneResult(Warning, Error), pretty)
@@ -37,14 +38,6 @@ foreign import spawn :: Fn2 String (Buffer -> EffN Unit) (EffN Unit)
 
 spawnAff :: String -> AffN Buffer
 spawnAff cmd = makeAff (\error success -> runFn2 spawn cmd success)
-
-foreign import write :: String -> EffN Unit
-
-clear :: AffN Unit
-clear = do
-  liftEff $ write "\x1b[2J"
-  liftEff $ write "\x1b[1;1H"
-  pure unit
 
 loadModules :: Int -> AffN Int
 loadModules port = do
@@ -80,9 +73,6 @@ formatState :: FilePath → Height → PaneState → String
 formatState cwd height (PscError res) = pretty cwd height res
 formatState _ _ (ModuleOk path progress) = green "Module OK" <> " " <> path <> " (" <> progress <> ")"
 formatState _ _ BuildSuccess = green "Build successful"
-
-display ∷ String → AffN Unit
-display content = clear *> liftEff (write content)
 
 runBuildCmd :: Int -> String -> String -> AffN Unit
 runBuildCmd port dir cmd = do
