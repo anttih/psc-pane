@@ -2,9 +2,10 @@ module PscPane.Server where
 
 import Prelude
 import Data.Maybe (Maybe(..), isNothing)
-import PscIde.Server (ServerStartResult(..), startServer)
+import PscIde.Server (ServerStartResult(..), startServer')
 import PscPane.Types (AffN)
 import Data.List (List(Cons, Nil))
+import Node.ChildProcess (ignore)
 
 startPscIdeServer :: String -> List Int -> AffN (Maybe Int)
 startPscIdeServer dir ports = go ports
@@ -17,8 +18,7 @@ startPscIdeServer dir ports = go ports
 
   startOnPort :: Int -> AffN (Maybe Int)
   startOnPort port =
-    serverRunning port <$> startServer "psc-ide-server" port (Just dir)
-
+    serverRunning port <$> startServer' ignore "psc-ide-server" port (Just dir)
 
 serverRunning ∷ Int -> ServerStartResult → Maybe Int
 serverRunning port (Started _) = Just port

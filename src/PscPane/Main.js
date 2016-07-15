@@ -1,5 +1,3 @@
-// module PscPane.Main
-
 "use strict";
 
 var concat = require('concat-stream');
@@ -16,12 +14,6 @@ exports.spawn = function (cmd, success) {
 exports.minimatch = function(str) {
   return function(glob) {
     return require("minimatch")(str, glob);
-  };
-};
-
-exports.write = function (str) {
-  return function () {
-    process.stdout.write(str);
   };
 };
 
