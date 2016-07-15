@@ -24,10 +24,10 @@ import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde (load, listLoadedModules, rebuild)
 import PscIde.Command (ModuleList(ModuleList), RebuildResult(RebuildResult))
+
 import PscPane.Output (clear, display, write)
-import PscPane.Color (green)
 import PscPane.Parser (PscResult(PscResult))
-import PscPane.Pretty (Height, PaneResult(Warning, Error), pretty)
+import PscPane.Pretty (PaneState(BuildSuccess, ModuleOk, PscError), PaneResult(Warning, Error), formatState)
 import PscPane.Server (startPscIdeServer)
 import PscPane.Types (EffN, AffN)
 import PscPane.Watcher (watch)
@@ -62,17 +62,6 @@ readErr err = findFirst jsonOutput lines
 
   findFirst :: (String -> Maybe PscResult) -> Array String -> Maybe PscResult
   findFirst f xs = runFirst (fold (map (First <<< f) xs))
-
-type Progress = String
-
-data PaneState = BuildSuccess
-               | ModuleOk FilePath Progress
-               | PscError PaneResult
-
-formatState :: FilePath → Height → PaneState → String
-formatState cwd height (PscError res) = pretty cwd height res
-formatState _ _ (ModuleOk path progress) = green "Module OK" <> " " <> path <> " (" <> progress <> ")"
-formatState _ _ BuildSuccess = green "Build successful"
 
 runBuildCmd :: Int -> String -> String -> AffN Unit
 runBuildCmd port dir cmd = do
@@ -118,8 +107,7 @@ foreign import rows :: EffN Int
 
 build :: Int -> String -> String -> AffN Unit
 build port dir cmd = do
-  clear
-  log "Building project..."
+  display "Building project..."
   runBuildCmd port dir cmd
 
 app :: String -> Array String -> EffN Unit

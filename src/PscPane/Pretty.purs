@@ -10,9 +10,20 @@ import Data.List (List(..), fromFoldable)
 import Node.Path (FilePath, relative)
 
 import PscIde.Command (RebuildError(..))
-import PscPane.Color (yellow, red)
+import PscPane.Color (green, yellow, red)
 
 type Height = Int
+
+type Progress = String
+
+data PaneState = BuildSuccess
+               | ModuleOk FilePath Progress
+               | PscError PaneResult
+
+formatState :: FilePath → Height → PaneState → String
+formatState cwd height (PscError res) = pretty cwd height res
+formatState _ _ (ModuleOk path progress) = green "Module OK" <> " " <> path <> " (" <> progress <> ")"
+formatState _ _ BuildSuccess = green "Build successful"
 
 data PaneResult = Warning RebuildError | Error RebuildError
 
