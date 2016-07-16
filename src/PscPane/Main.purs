@@ -9,7 +9,7 @@ import Control.Monad.Eff.Class (liftEff)
 import Data.List (range)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Parser (jsonParser)
-import Data.Array (head, length)
+import Data.Array (head)
 import Data.Either (Either(..), either)
 import Data.Foldable (any, fold)
 import Data.Function.Uncurried (Fn2, runFn2)
@@ -23,7 +23,7 @@ import Node.Process (cwd, exit)
 import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde (load, listLoadedModules, rebuild)
-import PscIde.Command (ModuleList(ModuleList), RebuildResult(RebuildResult))
+import PscIde.Command (RebuildResult(RebuildResult))
 
 import PscPane.Output (clear, display, write)
 import PscPane.Parser (PscResult(PscResult))
@@ -39,11 +39,10 @@ foreign import spawn :: Fn2 String (Buffer -> EffN Unit) (EffN Unit)
 spawnAff :: String -> AffN Buffer
 spawnAff cmd = makeAff (\error success -> runFn2 spawn cmd success)
 
-loadModules :: Int -> AffN Int
+loadModules :: Int -> AffN Unit
 loadModules port = do
   loaded <- load port [] []
-  modules <- listLoadedModules port
-  pure $ either (const 0) (\(ModuleList xs) -> length xs) $ loaded *> modules
+  void $ listLoadedModules port
 
 readErr :: String -> Maybe PscResult
 readErr err = findFirst jsonOutput lines
@@ -68,7 +67,7 @@ runBuildCmd port dir cmd = do
   buf <- spawnAff cmd
   height <- liftEff rows
   err <- liftEff $ toString UTF8 buf
-  mods <- loadModules port
+  loadModules port
   maybe (display err)
         (display <<< formatState dir height <<< toPaneState <<< firstFailure)
         (readErr err)
