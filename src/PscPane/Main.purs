@@ -22,7 +22,7 @@ import Node.Path (FilePath)
 import Node.Process (cwd, exit)
 import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
-import PscIde (load, listLoadedModules, rebuild)
+import PscIde (load, rebuild)
 import PscIde.Command (RebuildResult(RebuildResult))
 
 import PscPane.Output (clear, display, write)
@@ -40,9 +40,7 @@ spawnAff :: String -> AffN Buffer
 spawnAff cmd = makeAff (\error success -> runFn2 spawn cmd success)
 
 loadModules :: Int -> AffN Unit
-loadModules port = do
-  loaded <- load port [] []
-  void $ listLoadedModules port
+loadModules port = void $ load port [] []
 
 readErr :: String -> Maybe PscResult
 readErr err = findFirst jsonOutput lines
