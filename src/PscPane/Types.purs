@@ -11,6 +11,7 @@ import Node.ChildProcess (CHILD_PROCESS)
 import Node.FS (FS)
 import Node.Process (PROCESS)
 import PscIde (NET)
+import Blessed (BLESSED)
 
 type EffN = Eff ( fs :: FS
                 , err :: EXCEPTION
@@ -21,6 +22,7 @@ type EffN = Eff ( fs :: FS
                 , avar :: AVAR
                 , net :: NET
                 , ref :: REF
+                , blessed :: BLESSED
                 )
 
 type AffN = Aff ( fs :: FS
@@ -32,4 +34,5 @@ type AffN = Aff ( fs :: FS
                 , avar :: AVAR
                 , net :: NET
                 , ref :: REF
+                , blessed :: BLESSED
                 )
