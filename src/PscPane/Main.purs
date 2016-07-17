@@ -16,7 +16,7 @@ import Data.Maybe (Maybe(..), maybe, isNothing)
 import Data.Maybe.First (First(..), runFirst)
 import Data.String (split, trim)
 import Node.Path (FilePath)
-import Node.Process (cwd, exit)
+import Node.Process (cwd, exit) as P
 import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import Blessed (append, render, mkBox, mkScreen)
@@ -86,14 +86,14 @@ rebuildModule path = do
 
 app :: String -> Array String -> EffN Unit
 app buildCmd dirs = void $ runAff logShow pure do
-  dir <- liftEff cwd
-  running <- startPscIdeServer dir $ range 4242 4252
+  cwd <- liftEff P.cwd
+  running <- startPscIdeServer cwd $ range 4242 4252
   let screen = mkScreen { smartCSR: true }
   let box = mkBox { width: "100%", height: "100%", content: "Building project..." }
   liftEff $ append screen box
   liftEff $ render screen
   maybe quit (\port -> do
-    let runCmd = A.run { screen, box, port, dir, buildCmd }
+    let runCmd = A.run { screen, box, port, cwd, buildCmd }
     runCmd buildProject
     liftEff $ watch dirs \path -> do
       when (any (minimatch path) ["**/*.purs"]) $
@@ -108,7 +108,7 @@ app buildCmd dirs = void $ runAff logShow pure do
     quit :: AffN Unit
     quit = do
       log "Cannot start psc-ide-server"
-      liftEff (exit 1)
+      liftEff (P.exit 1)
 
 main :: EffN Unit
 main = do

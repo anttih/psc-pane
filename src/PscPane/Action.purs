@@ -6,6 +6,8 @@ import Control.Monad.Free (Free, foldFree, liftF)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (error)
+import Control.Monad.State.Trans (StateT, lift, evalStateT)
+import Control.Monad.State.Class (get)
 import Data.Function.Uncurried (Fn2, runFn2)
 import Data.Either (Either, either)
 import Node.Buffer (Buffer, toString)
@@ -46,29 +48,37 @@ showError err = liftF (ShowError err unit)
 
 type State =
   { port ∷ Int
-  , dir ∷ String
+  , cwd ∷ String
   , buildCmd ∷ String
   , screen ∷ Screen
   , box ∷ Box
   }
 
-appN ∷ State → (ActionF ~> AffN)
-appN { port } (RebuildModule path f) = do
-  res ← rebuild port path
+getState ∷ StateT State AffN State
+getState = get
+
+appN ∷ ActionF ~> StateT State AffN
+appN (RebuildModule path f) = do
+  { port } ← getState
+  res ← lift $ rebuild port path
   either (throwError <<< error) (pure <<< f) res
-appN { port } (LoadModules a) = const a <$> load port [] []
-appN { screen, box, buildCmd } (BuildProject f) = do
-  buf ← spawnAff buildCmd
+appN (LoadModules a) = do
+  { port } ← getState
+  lift $ const a <$> load port [] []
+appN (BuildProject f) = do
+  { screen, box, buildCmd } ← getState
+  buf ← lift $ spawnAff buildCmd
   liftEff $ f <$> toString UTF8 buf
-appN { screen, box, dir } (DrawPaneState state a) = do
+appN (DrawPaneState state a) = do
+  { screen, box, cwd } ← getState
   height ← liftEff rows
-  liftEff (setContent box (formatState dir height state))
+  liftEff (setContent box (formatState cwd height state))
   liftEff (render screen)
   pure a
-appN _ (ShowError err a) = const a <$> display err
+appN (ShowError err a) = lift $ const a <$> display err
 
-run ∷ State → Action ~> AffN
-run state = foldFree (appN state)
+run ∷ ∀ a. State → Action a → AffN a
+run state program = evalStateT (foldFree appN program) state
 
 foreign import spawn :: Fn2 String (Buffer → EffN Unit) (EffN Unit)
 
