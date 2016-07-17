@@ -15,6 +15,18 @@ exports.render = function (screen) {
   };
 };
 
+exports.on = function (screen) {
+  return function (event) {
+    return function (cb) {
+      return function () {
+        screen.on(event, function () {
+          cb()();
+        })
+      };
+    };
+  };
+};
+
 exports.append = function (screen) {
   return function (box) {
     return function () {

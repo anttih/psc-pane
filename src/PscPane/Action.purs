@@ -6,8 +6,8 @@ import Control.Monad.Free (Free, foldFree, liftF)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (error)
-import Control.Monad.State.Trans (StateT, lift, evalStateT)
-import Control.Monad.State.Class (get)
+import Control.Monad.State.Trans (StateT, lift, execStateT)
+import Control.Monad.State.Class (get, modify)
 import Data.Function.Uncurried (Fn2, runFn2)
 import Data.Either (Either, either)
 import Node.Buffer (Buffer, toString)
@@ -52,6 +52,7 @@ type State =
   , buildCmd ∷ String
   , screen ∷ Screen
   , box ∷ Box
+  , prevPaneState ∷ PaneState
   }
 
 getState ∷ StateT State AffN State
@@ -74,11 +75,12 @@ appN (DrawPaneState state a) = do
   height ← liftEff rows
   liftEff (setContent box (formatState cwd height state))
   liftEff (render screen)
+  modify (_ { prevPaneState = state })
   pure a
 appN (ShowError err a) = lift $ const a <$> display err
 
-run ∷ ∀ a. State → Action a → AffN a
-run state program = evalStateT (foldFree appN program) state
+run ∷ ∀ a. State → Action a → AffN State
+run state program = execStateT (foldFree appN program) state
 
 foreign import spawn :: Fn2 String (Buffer → EffN Unit) (EffN Unit)
 

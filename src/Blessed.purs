@@ -20,6 +20,8 @@ foreign import append ∷ ∀ eff. Screen → Box → Eff (blessed ∷ BLESSED |
 
 foreign import render ∷ ∀ eff. Screen → Eff (blessed ∷ BLESSED | eff) Unit
 
+foreign import on ∷ ∀ eff. Screen → String → (Unit → Eff (blessed ∷ BLESSED | eff) Unit) → Eff (blessed ∷ BLESSED | eff) Unit
+
 type BoxOptions =
   { width ∷ String
   , height ∷ String

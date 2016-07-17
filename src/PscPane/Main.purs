@@ -6,6 +6,7 @@ import Control.Monad.Aff (runAff)
 import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff.Console (logShow)
 import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
 import Data.List (range)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Parser (jsonParser)
@@ -19,12 +20,12 @@ import Node.Path (FilePath)
 import Node.Process (cwd, exit) as P
 import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
-import Blessed (append, render, mkBox, mkScreen)
+import Blessed (append, render, mkBox, mkScreen, on)
 
 import PscIde.Command (RebuildResult(RebuildResult))
 
 import PscPane.Parser (PscResult(PscResult))
-import PscPane.Pretty (PaneState(BuildSuccess, ModuleOk, PscError), PaneResult(Warning, Error))
+import PscPane.Pretty (PaneState(InitialBuild, BuildSuccess, ModuleOk, PscError), PaneResult(Warning, Error))
 import PscPane.Server (startPscIdeServer)
 import PscPane.Types (EffN, AffN)
 import PscPane.Watcher (watch)
@@ -68,6 +69,11 @@ buildProject = do
     toPaneState :: Maybe PaneResult → PaneState
     toPaneState = maybe BuildSuccess PscError
 
+initialBuild :: A.Action Unit
+initialBuild = do
+  A.drawPaneState InitialBuild
+  buildProject
+
 rebuildModule :: String -> A.Action Unit
 rebuildModule path = do
   errors <- A.rebuildModule path
@@ -89,12 +95,16 @@ app buildCmd dirs = void $ runAff logShow pure do
   cwd <- liftEff P.cwd
   running <- startPscIdeServer cwd $ range 4242 4252
   let screen = mkScreen { smartCSR: true }
-  let box = mkBox { width: "100%", height: "100%", content: "Building project..." }
+  let box = mkBox { width: "100%", height: "100%", content: "" }
   liftEff $ append screen box
   liftEff $ render screen
   maybe quit (\port -> do
-    let runCmd = A.run { screen, box, port, cwd, buildCmd }
-    runCmd buildProject
+    stateRef ← liftEff $ newRef { screen, box, port, cwd, buildCmd, prevPaneState: InitialBuild }
+    let runCmd program = do
+          state ← liftEff $ readRef stateRef
+          newState ← A.run state program
+          liftEff $ writeRef stateRef newState
+    runCmd initialBuild
     liftEff $ watch dirs \path -> do
       when (any (minimatch path) ["**/*.purs"]) $
         void $ runAff logShow pure (runCmd (rebuildModule path))
@@ -103,6 +113,10 @@ app buildCmd dirs = void $ runAff logShow pure do
       -- build and load the purs file?
       when (any (minimatch path) ["**/*.js"]) $
         void $ runAff logShow pure (runCmd buildProject)
+
+    liftEff $ on screen "resize" \_ -> do
+      { prevPaneState } ← readRef stateRef
+      void $ runAff logShow pure (runCmd (A.drawPaneState prevPaneState))
   ) running
   where
     quit :: AffN Unit

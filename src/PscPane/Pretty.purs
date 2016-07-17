@@ -16,11 +16,14 @@ type Height = Int
 
 type Progress = String
 
-data PaneState = BuildSuccess
-               | ModuleOk FilePath Progress
-               | PscError PaneResult
+data PaneState
+  = InitialBuild
+  | BuildSuccess
+  | ModuleOk FilePath Progress
+  | PscError PaneResult
 
 formatState :: FilePath → Height → PaneState → String
+formatState _ _ InitialBuild = "Building project..."
 formatState cwd height (PscError res) = pretty cwd height res
 formatState _ _ (ModuleOk path progress) = green "Module OK" <> " " <> path <> " (" <> progress <> ")"
 formatState _ _ BuildSuccess = green "Build successful"
