@@ -1,12 +1,15 @@
 module PscPane.Main where
 
 import Prelude hiding (append)
+import Control.Alt ((<|>))
 import Control.Apply ((*>))
+import Control.Coroutine (Consumer, runProcess, consumer, ($$))
 import Control.Monad.Aff (runAff)
-import Control.Monad.Aff.Console (log)
-import Control.Monad.Eff.Console (logShow)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
+import Control.Monad.Eff.Exception (Error, error, message)
+import Control.Monad.Error.Class (throwError, catchError)
+import Control.Parallel.Class (runParallel, parallel)
 import Data.List (range)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Parser (jsonParser)
@@ -17,10 +20,10 @@ import Data.Maybe (Maybe(..), maybe, isNothing)
 import Data.Maybe.First (First(..), runFirst)
 import Data.String (split, trim)
 import Node.Path (FilePath)
-import Node.Process (cwd, exit) as P
+import Node.Process (cwd) as P
 import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
-import Blessed (append, render, mkBox, mkScreen, on)
+import Blessed (append, setContent, render, mkBox, mkScreen, onResize)
 
 import PscIde.Command (RebuildResult(RebuildResult))
 
@@ -91,38 +94,55 @@ rebuildModule path = do
     toPaneState path Nothing = ModuleOk path "building project..."
 
 app :: String -> Array String -> EffN Unit
-app buildCmd dirs = void $ runAff logShow pure do
-  cwd <- liftEff P.cwd
-  running <- startPscIdeServer cwd $ range 4242 4252
-  let screen = mkScreen { smartCSR: true }
-  let box = mkBox { width: "100%", height: "100%", content: "" }
-  liftEff $ append screen box
-  liftEff $ render screen
-  maybe quit (\port -> do
+app buildCmd dirs = void do
+  cwd <- P.cwd
+  let
+    screen = mkScreen { smartCSR: true }
+    box = mkBox { width: "100%", height: "100%", content: "" }
+
+    fail ∷ Error → EffN Unit
+    fail err =
+      let msg = "Error: " <> message err <> " (type q to quit)"
+      in setContent box msg *> render screen
+
+  append screen box
+  render screen
+
+  runAff fail pure do
+    running ← startPscIdeServer cwd $ range 4242 4252
+    port ← maybe (throwError (error "Cannot start psc-ide-server")) pure running
     stateRef ← liftEff $ newRef { screen, box, port, cwd, buildCmd, prevPaneState: InitialBuild }
-    let runCmd program = do
-          state ← liftEff $ readRef stateRef
-          newState ← A.run state program
-          liftEff $ writeRef stateRef newState
+    let
+      runCmd ∷ A.Action Unit → AffN Unit
+      runCmd program =
+        let
+          program' = do
+            state ← liftEff $ readRef stateRef
+            newState ← A.run state program
+            liftEff $ writeRef stateRef newState
+        in catchError program' (liftEff <<< fail)
+
+      fileListener ∷ Consumer String AffN String
+      fileListener = consumer \path → do
+        when (any (minimatch path) ["**/*.purs"]) $ runCmd (rebuildModule path)
+
+        -- Changing a .js file triggers a full build for now. Should we just
+        -- build and load the purs file?
+        when (any (minimatch path) ["**/*.js"]) $ runCmd buildProject
+
+        pure Nothing
+
+      handleResize ∷ Consumer Unit AffN String
+      handleResize = consumer \_ → do
+        { prevPaneState } ← liftEff $ readRef stateRef
+        runCmd (A.drawPaneState prevPaneState)
+        pure Nothing
+
+      resizeP = runProcess (onResize screen $$ handleResize)
+      watchP = runProcess (watch dirs $$ fileListener)
+
     runCmd initialBuild
-    liftEff $ watch dirs \path -> do
-      when (any (minimatch path) ["**/*.purs"]) $
-        void $ runAff logShow pure (runCmd (rebuildModule path))
-
-      -- Changing a .js file triggers a full build for now. Should we just
-      -- build and load the purs file?
-      when (any (minimatch path) ["**/*.js"]) $
-        void $ runAff logShow pure (runCmd buildProject)
-
-    liftEff $ on screen "resize" \_ -> do
-      { prevPaneState } ← readRef stateRef
-      void $ runAff logShow pure (runCmd (A.drawPaneState prevPaneState))
-  ) running
-  where
-    quit :: AffN Unit
-    quit = do
-      log "Cannot start psc-ide-server"
-      liftEff (P.exit 1)
+    void $ runParallel $ parallel resizeP <|> parallel watchP
 
 main :: EffN Unit
 main = do

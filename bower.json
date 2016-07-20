@@ -23,6 +23,7 @@
     "purescript-node-child-process": "^1.0.0",
     "purescript-psc-ide": "^3.0.0",
     "purescript-argonaut-codecs": "^1.0.0",
-    "purescript-free": "~1.0.0"
+    "purescript-free": "~1.0.0",
+    "purescript-aff-coroutines": "~2.0.0"
   }
 }

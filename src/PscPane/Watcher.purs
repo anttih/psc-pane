@@ -1,7 +1,12 @@
-module PscPane.Watcher
-  (watch) where
+module PscPane.Watcher where
 
 import Prelude
-import PscPane.Types (EffN)
+import Control.Coroutine (Producer)
+import Control.Coroutine.Aff (produce)
+import Data.Either (Either(Left))
+import PscPane.Types (AffN, EffN)
 
-foreign import watch :: Array String -> (String -> EffN Unit) -> EffN Unit
+foreign import watch' :: Array String -> (String -> EffN Unit) -> EffN Unit
+
+watch ∷ Array String → Producer String AffN String
+watch dirs = produce \emit → watch' dirs (emit <<< Left)

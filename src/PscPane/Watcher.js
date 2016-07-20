@@ -2,7 +2,7 @@
 
 "use strict";
 
-exports.watch = function watch(dirs) {
+exports["watch'"] = function watch(dirs) {
   return function(act) {
     return function() {
       var Watchpack = require("watchpack");
