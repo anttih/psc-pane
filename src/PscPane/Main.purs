@@ -1,7 +1,7 @@
 module PscPane.Main where
 
 import PscPane.Action as A
-import Blessed (onResize, render, append, setContent, mkBox, mkScreen)
+import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen)
 import Control.Alt ((<|>))
 import Control.Apply ((*>))
 import Control.Coroutine (Consumer, runProcess, consumer, ($$))
@@ -21,7 +21,7 @@ import Data.Maybe (Maybe(..), maybe, isNothing)
 import Data.Maybe.First (First(..), runFirst)
 import Data.String (split, trim)
 import Node.Path (FilePath)
-import Node.Process (cwd) as P
+import Node.Process as P
 import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde.Command (RebuildResult(RebuildResult))
@@ -120,7 +120,7 @@ app buildCmd dirs = void do
             liftEff $ writeRef stateRef newState
         in catchError program' (liftEff <<< fail)
 
-      fileListener ∷ Consumer String AffN String
+      fileListener ∷ Consumer String AffN Unit
       fileListener = consumer \path → do
         when (any (minimatch path) ["**/*.purs"]) $ runCmd (rebuildModule path)
 
@@ -130,17 +130,28 @@ app buildCmd dirs = void do
 
         pure Nothing
 
-      handleResize ∷ Consumer Unit AffN String
+      handleResize ∷ Consumer Unit AffN Unit
       handleResize = consumer \_ → do
         { prevPaneState } ← liftEff $ readRef stateRef
         runCmd (A.drawPaneState prevPaneState)
         pure Nothing
 
+      handleQuit ∷ Consumer Unit AffN Unit
+      handleQuit = consumer \_ → do
+        liftEff $ P.exit 1
+        pure Nothing
+
+      resizeP ∷ AffN Unit
       resizeP = runProcess (onResize screen $$ handleResize)
+
+      watchP ∷ AffN Unit
       watchP = runProcess (watch dirs $$ fileListener)
 
-    runCmd initialBuild
-    void $ runParallel $ parallel resizeP <|> parallel watchP
+      quitP ∷ AffN Unit
+      quitP = runProcess (onQuit screen ["q", "C-c"] $$ handleQuit)
+
+    runParallel
+      $ parallel (runCmd initialBuild) <|> parallel resizeP <|> parallel watchP <|> parallel quitP
 
 main :: EffN Unit
 main = do

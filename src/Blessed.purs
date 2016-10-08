@@ -25,12 +25,24 @@ foreign import append ∷ ∀ eff. Screen → Box → Eff (blessed ∷ BLESSED |
 
 foreign import render ∷ ∀ eff. Screen → Eff (blessed ∷ BLESSED | eff) Unit
 
-onResize ∷ ∀ eff. Screen → Producer Unit (Aff (avar ∷ AVAR, blessed ∷ BLESSED | eff)) String
+onResize ∷ ∀ eff. Screen → Producer Unit (Aff (avar ∷ AVAR, blessed ∷ BLESSED | eff)) Unit
 onResize screen = produce \emit → on screen "resize" (emit <<< Left)
+
+onQuit
+  ∷ ∀ eff. Screen
+  → Array String
+  → Producer Unit (Aff (avar ∷ AVAR, blessed ∷ BLESSED | eff)) Unit
+onQuit screen keys = produce \emit → key screen keys (emit <<< Left)
 
 foreign import on
   ∷ ∀ eff. Screen
   → String
+  → (Unit → Eff (blessed ∷ BLESSED | eff) Unit)
+  → Eff (blessed ∷ BLESSED | eff) Unit
+
+foreign import key
+  ∷ ∀ eff. Screen
+  → Array String
   → (Unit → Eff (blessed ∷ BLESSED | eff) Unit)
   → Eff (blessed ∷ BLESSED | eff) Unit
 

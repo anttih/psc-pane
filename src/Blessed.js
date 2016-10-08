@@ -27,6 +27,18 @@ exports.on = function (screen) {
   };
 };
 
+exports.key = function (screen) {
+  return function (keys) {
+    return function (cb) {
+      return function () {
+        screen.key(keys, function () {
+          cb()();
+        })
+      };
+    };
+  };
+};
+
 exports.append = function (screen) {
   return function (box) {
     return function () {

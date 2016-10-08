@@ -8,5 +8,5 @@ import PscPane.Types (AffN, EffN)
 
 foreign import watch' :: Array String -> (String -> EffN Unit) -> EffN Unit
 
-watch ∷ Array String → Producer String AffN String
+watch ∷ Array String → Producer String AffN Unit
 watch dirs = produce \emit → watch' dirs (emit <<< Left)
