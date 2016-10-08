@@ -25,5 +25,8 @@
     "purescript-argonaut-codecs": "^1.0.0",
     "purescript-free": "~1.0.0",
     "purescript-aff-coroutines": "~2.0.0"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "~1.0.0"
   }
 }

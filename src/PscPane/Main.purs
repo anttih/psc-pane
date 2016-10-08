@@ -1,21 +1,22 @@
 module PscPane.Main where
 
-import Prelude hiding (append)
+import PscPane.Action as A
+import Blessed (onResize, render, append, setContent, mkBox, mkScreen)
 import Control.Alt ((<|>))
 import Control.Apply ((*>))
 import Control.Coroutine (Consumer, runProcess, consumer, ($$))
 import Control.Monad.Aff (runAff)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
 import Control.Monad.Eff.Exception (Error, error, message)
+import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
 import Control.Monad.Error.Class (throwError, catchError)
 import Control.Parallel.Class (runParallel, parallel)
-import Data.List (range)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array (head)
 import Data.Either (Either(..))
 import Data.Foldable (any, fold)
+import Data.List (range)
 import Data.Maybe (Maybe(..), maybe, isNothing)
 import Data.Maybe.First (First(..), runFirst)
 import Data.String (split, trim)
@@ -23,16 +24,13 @@ import Node.Path (FilePath)
 import Node.Process (cwd) as P
 import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
-import Blessed (append, setContent, render, mkBox, mkScreen, onResize)
-
 import PscIde.Command (RebuildResult(RebuildResult))
-
 import PscPane.Parser (PscResult(PscResult))
 import PscPane.Pretty (PaneState(InitialBuild, BuildSuccess, ModuleOk, PscError), PaneResult(Warning, Error))
 import PscPane.Server (startPscIdeServer)
 import PscPane.Types (EffN, AffN)
 import PscPane.Watcher (watch)
-import PscPane.Action as A
+import Prelude hiding (append)
 
 foreign import minimatch :: String -> String -> Boolean
 

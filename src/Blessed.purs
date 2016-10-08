@@ -28,7 +28,11 @@ foreign import render ∷ ∀ eff. Screen → Eff (blessed ∷ BLESSED | eff) Un
 onResize ∷ ∀ eff. Screen → Producer Unit (Aff (avar ∷ AVAR, blessed ∷ BLESSED | eff)) String
 onResize screen = produce \emit → on screen "resize" (emit <<< Left)
 
-foreign import on ∷ ∀ eff. Screen → String → (Unit → Eff (blessed ∷ BLESSED | eff) Unit) → Eff (blessed ∷ BLESSED | eff) Unit
+foreign import on
+  ∷ ∀ eff. Screen
+  → String
+  → (Unit → Eff (blessed ∷ BLESSED | eff) Unit)
+  → Eff (blessed ∷ BLESSED | eff) Unit
 
 type BoxOptions =
   { width ∷ String
