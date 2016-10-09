@@ -4,15 +4,13 @@ Auto reloading compiler for PureScript inspired by [ghcid](https://github.com/nd
 
 `psc-pane` watches your source files for changes and compiles them using psc-ide-server.
 Whenever the file you changed has no erros or warnings it will run a full rebuild
-of your project (`pulp build` by default). Only one error is displayed at a time and
-the output is made to fit the window (only height currently).
+of your project. Only one error is displayed at a time and the output is made to fit
+the window (only height currently).
 
 ### Installation
 
-Requires version 0.8.5 or higher of the purescript compiler.
-
 ```
-npm install pulp psc-pane -g
+npm install psc-pane -g
 ```
 
 ### Usage
@@ -27,7 +25,12 @@ This will start a psc-ide-server for you picking a port in range 4242-4252. It
 will then watch for changes in .purs and .js files and rebuild and show errors
 and warnings. When a .purs file is successfully rebuilt without warnings a full
 rebuild is triggered using the build command. The default build command is
-`pulp build` but you can provide a different one using the `-c` flag as long as
+
+```
+psc 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs' --json-errors
+```
+
+but you can provide a different one using the `-c` flag as long as
 that command returns errors in the psc JSON format:
 
 ```
