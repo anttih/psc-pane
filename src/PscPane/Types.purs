@@ -13,26 +13,26 @@ import Node.Process (PROCESS)
 import PscIde (NET)
 import Blessed (BLESSED)
 
-type EffN = Eff ( fs :: FS
-                , err :: EXCEPTION
-                , console :: CONSOLE
-                , buffer :: BUFFER
-                , process :: PROCESS
-                , cp :: CHILD_PROCESS
-                , avar :: AVAR
-                , net :: NET
-                , ref :: REF
-                , blessed :: BLESSED
+type EffN = Eff ( fs ∷ FS
+                , err ∷ EXCEPTION
+                , console ∷ CONSOLE
+                , buffer ∷ BUFFER
+                , process ∷ PROCESS
+                , cp ∷ CHILD_PROCESS
+                , avar ∷ AVAR
+                , net ∷ NET
+                , ref ∷ REF
+                , blessed ∷ BLESSED
                 )
 
-type AffN = Aff ( fs :: FS
-                , err :: EXCEPTION
-                , console :: CONSOLE
-                , buffer :: BUFFER
-                , process :: PROCESS
-                , cp :: CHILD_PROCESS
-                , avar :: AVAR
-                , net :: NET
-                , ref :: REF
-                , blessed :: BLESSED
+type AffN = Aff ( fs ∷ FS
+                , err ∷ EXCEPTION
+                , console ∷ CONSOLE
+                , buffer ∷ BUFFER
+                , process ∷ PROCESS
+                , cp ∷ CHILD_PROCESS
+                , avar ∷ AVAR
+                , net ∷ NET
+                , ref ∷ REF
+                , blessed ∷ BLESSED
                 )

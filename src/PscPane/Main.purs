@@ -32,27 +32,27 @@ import PscPane.Types (EffN, AffN)
 import PscPane.Watcher (watch)
 import Prelude hiding (append)
 
-foreign import minimatch :: String -> String -> Boolean
+foreign import minimatch ∷ String → String → Boolean
 
-readErr :: String -> Maybe PscResult
+readErr ∷ String → Maybe PscResult
 readErr err = findFirst jsonOutput lines
   where
-  lines :: Array String
+  lines ∷ Array String
   lines = split "\n" $ trim err
 
-  jsonOutput :: String -> Maybe PscResult
+  jsonOutput ∷ String → Maybe PscResult
   jsonOutput line = eitherToMaybe do
-    json <- jsonParser line
+    json ← jsonParser line
     decodeJson json
 
-  eitherToMaybe :: forall e a. Either e a -> Maybe a
+  eitherToMaybe ∷ forall e a. Either e a → Maybe a
   eitherToMaybe (Right a) = Just a
   eitherToMaybe _ = Nothing
 
-  findFirst :: (String -> Maybe PscResult) -> Array String -> Maybe PscResult
+  findFirst ∷ (String → Maybe PscResult) → Array String → Maybe PscResult
   findFirst f xs = runFirst (fold (map (First <<< f) xs))
 
-buildProject :: A.Action Unit
+buildProject ∷ A.Action Unit
 buildProject = do
   err ← A.buildProject
   A.loadModules
@@ -61,39 +61,39 @@ buildProject = do
         (readErr err)
   pure unit
     where
-    firstFailure :: PscResult -> Maybe PaneResult
+    firstFailure ∷ PscResult → Maybe PaneResult
     firstFailure (PscResult { warnings: [], errors: [] }) = Nothing
     firstFailure (PscResult { warnings: [], errors: errors }) = Error <$> head errors
     firstFailure (PscResult { warnings: warnings, errors: [] }) = Warning <$> head warnings
     firstFailure (PscResult { warnings: _, errors: errors }) = Error <$> head errors
 
-    toPaneState :: Maybe PaneResult → PaneState
+    toPaneState ∷ Maybe PaneResult → PaneState
     toPaneState = maybe BuildSuccess PscError
 
-initialBuild :: A.Action Unit
+initialBuild ∷ A.Action Unit
 initialBuild = do
   A.drawPaneState InitialBuild
   buildProject
 
-rebuildModule :: String -> A.Action Unit
+rebuildModule ∷ String → A.Action Unit
 rebuildModule path = do
-  errors <- A.rebuildModule path
+  errors ← A.rebuildModule path
   let firstErr = takeOne errors
   A.drawPaneState (toPaneState path firstErr)
   when (isNothing firstErr) buildProject
   pure unit
     where
-    takeOne :: Either RebuildResult RebuildResult -> Maybe PaneResult
+    takeOne ∷ Either RebuildResult RebuildResult → Maybe PaneResult
     takeOne (Right (RebuildResult warnings)) = Warning <$> head warnings
     takeOne (Left (RebuildResult errors)) = Error <$> head errors
 
-    toPaneState :: FilePath -> Maybe PaneResult -> PaneState
+    toPaneState ∷ FilePath → Maybe PaneResult → PaneState
     toPaneState _ (Just res) = PscError res
     toPaneState path Nothing = ModuleOk path "building project..."
 
-app :: String -> Array String -> EffN Unit
+app ∷ String → Array String → EffN Unit
 app buildCmd dirs = void do
-  cwd <- P.cwd
+  cwd ← P.cwd
   let
     screen = mkScreen { smartCSR: true }
     box = mkBox { width: "100%", height: "100%", content: "" }
@@ -153,7 +153,7 @@ app buildCmd dirs = void do
     runParallel
       $ parallel (runCmd initialBuild) <|> parallel resizeP <|> parallel watchP <|> parallel quitP
 
-main :: EffN Unit
+main ∷ EffN Unit
 main = do
   let setup = usage "psc-pane - Auto reloading PureScript compiler\n\nUsage: psc-pane [OPTION]"
               <> defaultHelp

@@ -82,9 +82,9 @@ appN (ShowError err a) = lift $ const a <$> display err
 run ∷ ∀ a. State → Action a → AffN State
 run state program = execStateT (foldFree appN program) state
 
-foreign import spawn :: Fn2 String (Buffer → EffN Unit) (EffN Unit)
+foreign import spawn ∷ Fn2 String (Buffer → EffN Unit) (EffN Unit)
 
-spawnAff :: String → AffN Buffer
+spawnAff ∷ String → AffN Buffer
 spawnAff cmd = makeAff (\error success → runFn2 spawn cmd success)
 
-foreign import rows :: EffN Int
+foreign import rows ∷ EffN Int
