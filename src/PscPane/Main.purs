@@ -138,7 +138,7 @@ app buildCmd dirs = void do
 
       handleQuit ∷ Consumer Unit AffN Unit
       handleQuit = consumer \_ → do
-        liftEff $ P.exit 1
+        liftEff $ P.exit 0
         pure Nothing
 
       resizeP ∷ AffN Unit
