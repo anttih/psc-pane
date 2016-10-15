@@ -53,6 +53,7 @@ type State =
   , screen ∷ Screen
   , box ∷ Box
   , prevPaneState ∷ PaneState
+  , colorize ∷ Boolean
   }
 
 getState ∷ StateT State AffN State
@@ -71,9 +72,9 @@ appN (BuildProject f) = do
   buf ← lift $ spawnAff buildCmd
   liftEff $ f <$> toString UTF8 buf
 appN (DrawPaneState state a) = do
-  { screen, box, cwd } ← getState
+  { screen, box, cwd, colorize } ← getState
   height ← liftEff rows
-  liftEff (setContent box (formatState cwd height state))
+  liftEff (setContent box (formatState colorize cwd height state))
   liftEff (render screen)
   modify (_ { prevPaneState = state })
   pure a
