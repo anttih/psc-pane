@@ -3,8 +3,9 @@ module PscPane.Pretty where
 import Prelude
 import Data.Either (Either(Right))
 import Data.Array (length, take, takeWhile, filter)
-import Data.String (joinWith, contains, split, trim)
+import Data.String (Pattern(..), joinWith, contains, split, trim)
 import Data.String.Regex as R
+import Data.String.Regex.Flags (RegexFlags(..), global)
 import Data.Maybe (Maybe(..), maybe)
 import Data.List (List(..), fromFoldable)
 import Node.Path (FilePath, relative)
@@ -37,7 +38,7 @@ pretty cwd h (Error err) = prettyError' (red "Error") cwd h err
 prettyError' ∷ String → FilePath → Height → RebuildError → String
 prettyError' t cwd h (RebuildError err@{ position }) =
   t <> " " <> (filenameOrModule cwd err) <> (prettyPosition position)
-  <> "\n" <> (prettyMessage (h - 1) (split "\n" err.message))
+  <> "\n" <> (prettyMessage (h - 1) (split (Pattern "\n") err.message))
 
 filenameOrModule ∷ forall xs
   . FilePath
@@ -72,36 +73,33 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
                                    ]) lines
 
   trimLines ∷ Array String → Array String
-  trimLines lines = replace (R.regex "^\n+|\n+$" flags) "" lines
-    where flags = { global: true
-                  , ignoreCase: false
-                  , multiline: false
-                  , sticky: false
-                  , unicode: false }
+  trimLines lines = replace (R.regex "^\n+|\n+$" global) "" lines
 
 
   withoutExtraLines ∷ Array String → Array String
   withoutExtraLines lines = replace (R.regex "\n{2}" flags) "\n" lines
-    where flags = { global: true
-                  , ignoreCase: false
-                  , multiline: true
-                  , sticky: false
-                  , unicode: false }
+    where flags = RegexFlags
+                    { global: true
+                    , ignoreCase: false
+                    , multiline: true
+                    , sticky: false
+                    , unicode: false
+                    }
 
   replace ∷ Either String R.Regex → String → Array String → Array String
-  replace (Right regex) s lines = split "\n" (R.replace regex s (joinWith "\n" lines))
+  replace (Right regex) s lines = split (Pattern "\n") (R.replace regex s (joinWith "\n" lines))
   replace _ _ lines = lines
 
   withoutWikiLink ∷ Array String → Array String
   withoutWikiLink = trimLines <<< takeWhile wikiLink
-    where wikiLink = not <<< contains "See https://"
+    where wikiLink = not <<< contains (Pattern "See https://")
 
   withoutEmptyLines ∷ Array String → Array String
   withoutEmptyLines = filter ((_ /= "") <<< trim)
 
   withoutTypeInfo ∷ Array String → Array String
   withoutTypeInfo  = trimLines <<< takeWhile typeInfo
-    where typeInfo = not <<< contains "while trying to match type"
+    where typeInfo = not <<< contains (Pattern "while trying to match type")
 
   -- | Try different fitting functions passing the previous result to the next
   -- | until the message fits.

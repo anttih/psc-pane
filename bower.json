@@ -11,22 +11,22 @@
     "output"
   ],
   "dependencies": {
-    "purescript-console": "^1.0.0",
+    "purescript-console": "^2.0.0",
     "purescript-yargs": "^1.0.0",
-    "purescript-aff": "^1.0.0",
-    "purescript-node-fs": "^1.0.0",
-    "purescript-node-process": "^1.0.0",
-    "purescript-node-streams": "^1.0.0",
-    "purescript-lists": "^1.0.0",
-    "purescript-ansi": "^1.0.0",
+    "purescript-aff": "^2.0.0",
+    "purescript-node-fs": "^3.0.0",
+    "purescript-node-process": "^3.0.0",
+    "purescript-node-streams": "^2.0.0",
+    "purescript-lists": "^3.0.0",
+    "purescript-ansi": "^2.0.0",
     "purescript-node-path": "^1.0.0",
-    "purescript-node-child-process": "^1.0.0",
-    "purescript-psc-ide": "^3.0.0",
-    "purescript-argonaut-codecs": "^1.0.0",
-    "purescript-free": "~1.0.0",
-    "purescript-aff-coroutines": "~2.0.0"
+    "purescript-node-child-process": "^3.0.0",
+    "purescript-psc-ide": "^7.0.0",
+    "purescript-argonaut-codecs": "^2.0.0",
+    "purescript-free": "^3.0.0",
+    "purescript-aff-coroutines": "^4.0.0"
   },
   "devDependencies": {
-    "purescript-psci-support": "~1.0.0"
+    "purescript-psci-support": "^2.0.0"
   }
 }

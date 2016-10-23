@@ -3,23 +3,23 @@ module PscPane.Main where
 import PscPane.Action as A
 import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen)
 import Control.Alt ((<|>))
-import Control.Apply ((*>))
 import Control.Coroutine (Consumer, runProcess, consumer, ($$))
 import Control.Monad.Aff (runAff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (Error, error, message)
 import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
 import Control.Monad.Error.Class (throwError, catchError)
-import Control.Parallel.Class (runParallel, parallel)
+import Control.Parallel.Class (sequential, parallel)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array (head)
 import Data.Either (Either(..))
 import Data.Foldable (any, fold)
 import Data.List (range)
+import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), maybe, isNothing)
-import Data.Maybe.First (First(..), runFirst)
-import Data.String (split, trim)
+import Data.Maybe.First (First(..))
+import Data.String (Pattern(..), split, trim)
 import Node.Path (FilePath)
 import Node.Process as P
 import Node.Yargs.Applicative (yarg, runY)
@@ -38,7 +38,7 @@ readErr ∷ String → Maybe PscResult
 readErr err = findFirst jsonOutput lines
   where
   lines ∷ Array String
-  lines = split "\n" $ trim err
+  lines = split (Pattern "\n") $ trim err
 
   jsonOutput ∷ String → Maybe PscResult
   jsonOutput line = eitherToMaybe do
@@ -50,7 +50,7 @@ readErr err = findFirst jsonOutput lines
   eitherToMaybe _ = Nothing
 
   findFirst ∷ (String → Maybe PscResult) → Array String → Maybe PscResult
-  findFirst f xs = runFirst (fold (map (First <<< f) xs))
+  findFirst f xs = unwrap (fold (map (First <<< f) xs))
 
 buildProject ∷ A.Action Unit
 buildProject = do
@@ -150,7 +150,7 @@ app buildCmd dirs = void do
       quitP ∷ AffN Unit
       quitP = runProcess (onQuit screen ["q", "C-c"] $$ handleQuit)
 
-    runParallel
+    sequential
       $ parallel (runCmd initialBuild) <|> parallel resizeP <|> parallel watchP <|> parallel quitP
 
 main ∷ EffN Unit
