@@ -25,6 +25,7 @@ import Node.Process as P
 import Node.Yargs.Applicative (yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde.Command (RebuildResult(RebuildResult))
+import PscIde.Server (stopServer)
 import PscPane.Parser (PscResult(PscResult))
 import PscPane.Pretty (PaneState(InitialBuild, BuildSuccess, ModuleOk, PscError), PaneResult(Warning, Error))
 import PscPane.Server (startPscIdeServer)
@@ -138,6 +139,7 @@ app buildCmd dirs = void do
 
       handleQuit ∷ Consumer Unit AffN Unit
       handleQuit = consumer \_ → do
+        stopServer port
         liftEff $ P.exit 0
         pure Nothing
 
