@@ -22,7 +22,7 @@ import Data.Maybe.First (First(..))
 import Data.String (Pattern(..), split, trim)
 import Node.Path (FilePath)
 import Node.Process as P
-import Node.Yargs.Applicative (yarg, runY)
+import Node.Yargs.Applicative (flag, yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde.Command (RebuildResult(RebuildResult))
 import PscIde.Server (stopServer)
@@ -92,8 +92,8 @@ rebuildModule path = do
     toPaneState _ (Just res) = PscError res
     toPaneState path Nothing = ModuleOk path "building project..."
 
-app ∷ String → Array String → EffN Unit
-app buildCmd dirs = void do
+app ∷ String → Array String → Boolean → EffN Unit
+app buildCmd dirs colorize = void do
   cwd ← P.cwd
   let
     screen = mkScreen { smartCSR: true }
@@ -110,7 +110,7 @@ app buildCmd dirs = void do
   runAff fail pure do
     running ← startPscIdeServer cwd $ range 4242 4252
     port ← maybe (throwError (error "Cannot start psc-ide-server")) pure running
-    stateRef ← liftEff $ newRef { screen, box, port, cwd, buildCmd, prevPaneState: InitialBuild }
+    stateRef ← liftEff $ newRef { screen, box, port, cwd, buildCmd, prevPaneState: InitialBuild, colorize }
     let
       runCmd ∷ A.Action Unit → AffN Unit
       runCmd program =
@@ -171,3 +171,5 @@ main = do
       (Just  "Directory to watch for changes (default: \"src\")")
       (Left ["src"])
       true
+    <*> flag "p" ["color"]
+      (Just "Colorize output. On by default. --no-color to turn off.")

@@ -23,17 +23,29 @@ data PaneState
   | ModuleOk FilePath Progress
   | PscError PaneResult
 
-formatState ∷ FilePath → Height → PaneState → String
-formatState _ _ InitialBuild = "Building project..."
-formatState cwd height (PscError res) = pretty cwd height res
-formatState _ _ (ModuleOk path progress) = green "Module OK" <> " " <> path <> " (" <> progress <> ")"
-formatState _ _ BuildSuccess = green "Build successful"
+formatState ∷ Boolean → FilePath → Height → PaneState → String
+formatState _ _ _ InitialBuild = "Building project..."
+formatState colorize cwd height (PscError res) = pretty colorize cwd height res
+formatState colorize _ _ (ModuleOk path progress) = green' colorize "Module OK" <> " " <> path <> " (" <> progress <> ")"
+formatState colorize _ _ BuildSuccess = green' colorize "Build successful"
 
 data PaneResult = Warning RebuildError | Error RebuildError
 
-pretty ∷ FilePath → Height → PaneResult → String
-pretty cwd h (Warning warn) = prettyError' (yellow "Warning") cwd h warn
-pretty cwd h (Error err) = prettyError' (red "Error") cwd h err
+pretty ∷ Boolean → FilePath → Height → PaneResult → String
+pretty colorize cwd h (Warning warn) = prettyError' (yellow' colorize "Warning") cwd h warn
+pretty colorize cwd h (Error err) = prettyError' (red' colorize "Error") cwd h err
+
+yellow' ∷ Boolean → String → String
+yellow' true = yellow
+yellow' fale = id
+
+green' ∷ Boolean → String → String
+green' true = green
+green' fale = id
+
+red' ∷ Boolean → String → String
+red' true = red
+red' fale = id
 
 prettyError' ∷ String → FilePath → Height → RebuildError → String
 prettyError' t cwd h (RebuildError err@{ position }) =
