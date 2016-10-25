@@ -2,10 +2,12 @@
 
 Auto reloading compiler for PureScript inspired by [ghcid](https://github.com/ndmitchell/ghcid).
 
-`psc-pane` watches your source files for changes and compiles them using psc-ide-server.
-Whenever the file you changed has no erros or warnings it will run a full rebuild
-of your project. Only one error is displayed at a time and the output is made to fit
-the window (only height currently).
+`psc-pane` watches your source files for changes and compiles them using
+psc-ide-server. When the current file compiles without warnings a full rebuild
+is triggered. Only one error is displayed at a time and the output is made to
+fit the window. The output is reformatted when you resize the window.
+
+![screencast](http://anttih.github.io/psc-pane/psc-pane.gif)
 
 ### Installation
 
@@ -39,3 +41,6 @@ psc-pane -c 'npm run build'
 
 Changing a .js file will always trigger a full build.
 
+You can turn off colors with `--no-color`.
+
+See `--help` for the full list of options.
