@@ -93,7 +93,7 @@ rebuildModule path = do
     toPaneState path Nothing = ModuleOk path "building project..."
 
 app ∷ String → Array String → Boolean → EffN Unit
-app buildCmd dirs colorize = void do
+app buildCmd dirs noColor = void do
   cwd ← P.cwd
   let
     screen = mkScreen { smartCSR: true }
@@ -110,7 +110,14 @@ app buildCmd dirs colorize = void do
   runAff fail pure do
     running ← startPscIdeServer cwd $ range 4242 4252
     port ← maybe (throwError (error "Cannot start psc-ide-server")) pure running
-    stateRef ← liftEff $ newRef { screen, box, port, cwd, buildCmd, prevPaneState: InitialBuild, colorize }
+    stateRef ← liftEff $ newRef { screen
+                                , box
+                                , port
+                                , cwd
+                                , buildCmd
+                                , prevPaneState: InitialBuild
+                                , colorize: not noColor
+                                }
     let
       runCmd ∷ A.Action Unit → AffN Unit
       runCmd program =
@@ -168,8 +175,7 @@ main = do
         (Left "psc 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs' --json-errors")
         true
     <*> yarg "w" ["watch-path"]
-      (Just  "Directory to watch for changes (default: \"src\")")
-      (Left ["src"])
-      true
-    <*> flag "p" ["color"]
-      (Just "Colorize output. On by default. --no-color to turn off.")
+        (Just  "Directory to watch for changes (default: \"src\")")
+        (Left ["src"])
+        true
+    <*> flag "nocolor" [] (Just "Do not colorize output.")
