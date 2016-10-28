@@ -19,15 +19,19 @@ type Progress = String
 
 data PaneState
   = InitialBuild
-  | BuildSuccess
+  | BuildSuccess Progress
   | ModuleOk FilePath Progress
   | PscError PaneResult
+  | TestFailure String
+  | TestSuccess
 
 formatState ∷ Boolean → FilePath → Height → PaneState → String
 formatState _ _ _ InitialBuild = "Building project..."
 formatState colorize cwd height (PscError res) = pretty colorize cwd height res
 formatState colorize _ _ (ModuleOk path progress) = green' colorize "Module OK" <> " " <> path <> " (" <> progress <> ")"
-formatState colorize _ _ BuildSuccess = green' colorize "Build successful"
+formatState colorize _ _ (BuildSuccess progress) = green' colorize "Build successful" <> " (" <> progress <> ")"
+formatState colorize _ _ (TestFailure output) = red' colorize "Test failure" <> "\n" <> output
+formatState colorize _ _ TestSuccess = green' colorize "All tests pass"
 
 data PaneResult = Warning RebuildError | Error RebuildError
 

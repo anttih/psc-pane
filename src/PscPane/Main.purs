@@ -10,16 +10,11 @@ import Control.Monad.Eff.Exception (Error, error, message)
 import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
 import Control.Monad.Error.Class (throwError, catchError)
 import Control.Parallel.Class (sequential, parallel)
-import Data.Argonaut.Decode (decodeJson)
-import Data.Argonaut.Parser (jsonParser)
 import Data.Array (head)
 import Data.Either (Either(..))
-import Data.Foldable (any, fold)
+import Data.Foldable (any)
 import Data.List (range)
-import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), maybe, isNothing)
-import Data.Maybe.First (First(..))
-import Data.String (Pattern(..), split, trim)
 import Node.Path (FilePath)
 import Node.Process as P
 import Node.Yargs.Applicative (flag, yarg, runY)
@@ -27,7 +22,7 @@ import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde.Command (RebuildResult(RebuildResult))
 import PscIde.Server (stopServer)
 import PscPane.Parser (PscResult(PscResult))
-import PscPane.Pretty (PaneState(InitialBuild, BuildSuccess, ModuleOk, PscError), PaneResult(Warning, Error))
+import PscPane.Pretty (PaneState(..), PaneResult(Warning, Error))
 import PscPane.Server (startPscIdeServer)
 import PscPane.Types (EffN, AffN)
 import PscPane.Watcher (watch)
@@ -35,41 +30,34 @@ import Prelude hiding (append)
 
 foreign import minimatch ∷ String → String → Boolean
 
-readErr ∷ String → Maybe PscResult
-readErr err = findFirst jsonOutput lines
-  where
-  lines ∷ Array String
-  lines = split (Pattern "\n") $ trim err
-
-  jsonOutput ∷ String → Maybe PscResult
-  jsonOutput line = eitherToMaybe do
-    json ← jsonParser line
-    decodeJson json
-
-  eitherToMaybe ∷ forall e a. Either e a → Maybe a
-  eitherToMaybe (Right a) = Just a
-  eitherToMaybe _ = Nothing
-
-  findFirst ∷ (String → Maybe PscResult) → Array String → Maybe PscResult
-  findFirst f xs = unwrap (fold (map (First <<< f) xs))
-
 buildProject ∷ A.Action Unit
 buildProject = do
   err ← A.buildProject
   A.loadModules
-  maybe (A.showError err)
-        (A.drawPaneState <<< toPaneState <<< firstFailure)
-        (readErr err)
+  case firstFailure err of
+    Just res →
+      A.drawPaneState (PscError res)
+    Nothing → do
+      shouldRunTests ← A.shouldRunTests
+      if shouldRunTests then
+        do
+          A.drawPaneState (BuildSuccess "running tests...")
+          testResult ← A.runTests
+          case testResult of
+            Nothing → A.drawPaneState TestSuccess
+            Just out → A.drawPaneState (TestFailure out)
+        else 
+          A.drawPaneState (BuildSuccess "")
+        
   pure unit
-    where
-    firstFailure ∷ PscResult → Maybe PaneResult
-    firstFailure (PscResult { warnings: [], errors: [] }) = Nothing
-    firstFailure (PscResult { warnings: [], errors: errors }) = Error <$> head errors
-    firstFailure (PscResult { warnings: warnings, errors: [] }) = Warning <$> head warnings
-    firstFailure (PscResult { warnings: _, errors: errors }) = Error <$> head errors
 
-    toPaneState ∷ Maybe PaneResult → PaneState
-    toPaneState = maybe BuildSuccess PscError
+  where
+
+  firstFailure ∷ PscResult → Maybe PaneResult
+  firstFailure (PscResult { warnings: [], errors: [] }) = Nothing
+  firstFailure (PscResult { warnings: [], errors: errors }) = Error <$> head errors
+  firstFailure (PscResult { warnings: warnings, errors: [] }) = Warning <$> head warnings
+  firstFailure (PscResult { warnings: _, errors: errors }) = Error <$> head errors
 
 initialBuild ∷ A.Action Unit
 initialBuild = do
@@ -92,8 +80,8 @@ rebuildModule path = do
     toPaneState _ (Just res) = PscError res
     toPaneState path Nothing = ModuleOk path "building project..."
 
-app ∷ String → Array String → Boolean → EffN Unit
-app buildCmd dirs noColor = void do
+app ∷ String → String → String → String → Boolean → Boolean → EffN Unit
+app srcPath libPath testPath testMain test noColor = void do
   cwd ← P.cwd
   let
     screen = mkScreen { smartCSR: true }
@@ -114,7 +102,11 @@ app buildCmd dirs noColor = void do
                                 , box
                                 , port
                                 , cwd
-                                , buildCmd
+                                , srcPath
+                                , libPath
+                                , testPath
+                                , testMain
+                                , test
                                 , prevPaneState: InitialBuild
                                 , colorize: not noColor
                                 }
@@ -154,7 +146,8 @@ app buildCmd dirs noColor = void do
       resizeP = runProcess (onResize screen $$ handleResize)
 
       watchP ∷ AffN Unit
-      watchP = runProcess (watch dirs $$ fileListener)
+      watchP = let watchDirs = if test then [srcPath, testPath] else [srcPath]
+               in runProcess (watch watchDirs $$ fileListener)
 
       quitP ∷ AffN Unit
       quitP = runProcess (onQuit screen ["q", "C-c"] $$ handleQuit)
@@ -169,13 +162,21 @@ main = do
               <> defaultVersion
   runY setup $
     app
-    <$> yarg "c" ["command"]
-        (Just ("Build command. Should return JSON in stderr. "
-          <> "Default:  psc 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs' --json-errors"))
-        (Left "psc 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs' --json-errors")
+    <$> yarg "src" []
+        (Just "Path to .purs sources. Default: \"src\".")
+        (Left "src")
         true
-    <*> yarg "w" ["watch-path"]
-        (Just  "Directory to watch for changes (default: \"src\")")
-        (Left ["src"])
+    <*> yarg "lib" []
+        (Just "Path to dependency files. Default: \"bower_components\"")
+        (Left "bower_components")
         true
+    <*> yarg "test-src" []
+        (Just "Path to test sources. Default \"test\"")
+        (Left "test")
+        true
+    <*> yarg "test-main" []
+        (Just "Module with main function to run for tests. Default: \"Test.Main\"")
+        (Left "Test.Main")
+        true
+    <*> flag "t" ["test"] (Just "Run tests after a successful build.")
     <*> flag "nocolor" [] (Just "Do not colorize output.")
