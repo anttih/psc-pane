@@ -22,7 +22,7 @@ import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde.Command (RebuildResult(RebuildResult))
 import PscIde.Server (stopServer)
 import PscPane.Parser (PscResult(PscResult))
-import PscPane.Pretty (PaneState(..), PaneResult(Warning, Error))
+import PscPane.Pretty (PaneState(..), Progress(InProgress, Done), PaneResult(Warning, Error))
 import PscPane.Server (startPscIdeServer)
 import PscPane.Types (EffN, AffN)
 import PscPane.Watcher (watch)
@@ -41,13 +41,13 @@ buildProject = do
       shouldRunTests ← A.shouldRunTests
       if shouldRunTests then
         do
-          A.drawPaneState (BuildSuccess "running tests...")
+          A.drawPaneState (BuildSuccess (InProgress "running tests..."))
           testResult ← A.runTests
           case testResult of
             Nothing → A.drawPaneState TestSuccess
             Just out → A.drawPaneState (TestFailure out)
         else 
-          A.drawPaneState (BuildSuccess "")
+          A.drawPaneState (BuildSuccess Done)
         
   pure unit
 
@@ -78,7 +78,7 @@ rebuildModule path = do
 
     toPaneState ∷ FilePath → Maybe PaneResult → PaneState
     toPaneState _ (Just res) = PscError res
-    toPaneState path Nothing = ModuleOk path "building project..."
+    toPaneState path Nothing = ModuleOk path (InProgress "building project...")
 
 app ∷ String → String → String → String → Boolean → Boolean → EffN Unit
 app srcPath libPath testPath testMain test noColor = void do

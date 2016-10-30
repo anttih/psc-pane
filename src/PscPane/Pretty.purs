@@ -15,7 +15,11 @@ import PscPane.Color (green, yellow, red)
 
 type Height = Int
 
-type Progress = String
+data Progress = InProgress String | Done
+
+showProgress ∷ Progress → String
+showProgress (InProgress progress) = "(" <> progress <> ")"
+showProgress Done = ""
 
 data PaneState
   = InitialBuild
@@ -28,8 +32,10 @@ data PaneState
 formatState ∷ Boolean → FilePath → Height → PaneState → String
 formatState _ _ _ InitialBuild = "Building project..."
 formatState colorize cwd height (PscError res) = pretty colorize cwd height res
-formatState colorize _ _ (ModuleOk path progress) = green' colorize "Module OK" <> " " <> path <> " (" <> progress <> ")"
-formatState colorize _ _ (BuildSuccess progress) = green' colorize "Build successful" <> " (" <> progress <> ")"
+formatState colorize _ _ (ModuleOk path progress) =
+  green' colorize "Module OK" <> " " <> path <> " " <> showProgress progress
+formatState colorize _ _ (BuildSuccess progress) =
+  green' colorize "Build successful " <> showProgress progress
 formatState colorize _ _ (TestFailure output) = red' colorize "Test failure" <> "\n" <> output
 formatState colorize _ _ TestSuccess = green' colorize "All tests pass"
 
