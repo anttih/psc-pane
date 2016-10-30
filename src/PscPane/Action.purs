@@ -17,12 +17,13 @@ import Data.Maybe (Maybe(..))
 import Data.Maybe.First (First(..))
 import Data.Foldable (fold)
 import Data.Either (Either(..), either)
-import Data.String (Pattern(..), split, trim)
+import Data.String (Pattern(..), Replacement(..), split, trim, replace)
 import Node.Buffer (Buffer)
 import Node.ChildProcess (Exit(BySignal, Normally), defaultSpawnOptions, onClose, stderr)
 import Node.ChildProcess as CP
 import Node.Stream (onDataString)
 import Node.Encoding (Encoding(UTF8))
+import Node.Path as Path
 
 import Blessed (Screen, Box, render, setContent)
 
@@ -82,21 +83,18 @@ type State =
   , colorize ∷ Boolean
   }
 
-getState ∷ StateT State AffN State
-getState = get
-
 appN ∷ ActionF ~> StateT State AffN
 appN (RebuildModule path f) = do
-  { port } ← getState
+  { port } ← get
   res ← lift $ rebuild port path
   either (throwError <<< error) (pure <<< f) res
 appN (LoadModules a) = do
-  { port } ← getState
+  { port } ← get
   lift $ const a <$> load port [] []
 appN (BuildProject f) = do
-  { screen, box, srcPath, libPath } ← getState
-  let srcGlob = srcPath <> "/**/*.purs"
-      libGlob = libPath <> "/purescript-*/src/**/*.purs"
+  { screen, box, srcPath, libPath } ← get
+  let srcGlob = Path.concat [srcPath, "**", "*.purs"]
+      libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
   child ← liftEff $ CP.spawn "psc" [srcGlob, libGlob, "--json-errors"] defaultSpawnOptions
   output ← liftEff $ newRef ""
   res ← lift $ makeAff \_ success -> do
@@ -112,7 +110,7 @@ appN (BuildProject f) = do
     Just res' → pure (f res')
 appN (RunTests f) = do
   { testMain } ← get
-  let modulePath = "./output/" <> testMain
+  let modulePath = "./output/" <> jsEscape testMain
   child ← liftEff $
     CP.spawn "node" ["-e", "require('" <> modulePath <> "').main();"] defaultSpawnOptions
   output ← liftEff $ newRef ""
@@ -126,11 +124,22 @@ appN (RunTests f) = do
       (Normally n) → readRef output >>= succ <<< Just
       (BySignal _) → succ $ Just "Signal interrupted test"
   pure $ f res
+
+  where
+
+  -- | This is from bodil/pulp
+  -- | 
+  -- | Escape a string for insertion into a JS string literal.
+  jsEscape :: String -> String
+  jsEscape =
+    replace (Pattern "'") (Replacement "\\'")
+    <<< replace (Pattern "\\") (Replacement "'")
+
 appN (ShouldRunTests f) = do
-  { test } ← getState
+  { test } ← get
   pure (f test)
 appN (DrawPaneState state a) = do
-  { screen, box, cwd, colorize } ← getState
+  { screen, box, cwd, colorize } ← get
   height ← liftEff rows
   liftEff (setContent box (formatState colorize cwd height state))
   liftEff (render screen)
