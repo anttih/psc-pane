@@ -1,7 +1,5 @@
 module PscPane.Main where
 
-import PscPane.Action as A
-import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen)
 import Control.Alt ((<|>))
 import Control.Coroutine (Consumer, runProcess, consumer, ($$))
 import Control.Monad.Aff (runAff)
@@ -22,9 +20,12 @@ import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde.Command (RebuildResult(RebuildResult))
 import PscIde.Server (stopServer)
 
+import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen)
+import PscPane.DSL as A
 import PscPane.Config (Config)
+import PscPane.Interpreter (run)
 import PscPane.Parser (PscResult(PscResult))
-import PscPane.State (State(..), Progress(InProgress, Done), PaneResult(Warning, Error))
+import PscPane.State (State(..), Progress(InProgress, Done), PscFailure(Warning, Error))
 import PscPane.Server (startPscIdeServer)
 import PscPane.Types (EffN, AffN)
 import PscPane.Watcher (watch)
@@ -55,7 +56,7 @@ buildProject = do
 
   where
 
-  firstFailure ∷ PscResult → Maybe PaneResult
+  firstFailure ∷ PscResult → Maybe PscFailure
   firstFailure (PscResult { warnings: [], errors: [] }) = Nothing
   firstFailure (PscResult { warnings: [], errors: errors }) = Error <$> head errors
   firstFailure (PscResult { warnings: warnings, errors: [] }) = Warning <$> head warnings
@@ -74,11 +75,11 @@ rebuildModule path = do
   when (isNothing firstErr) buildProject
   pure unit
     where
-    takeOne ∷ Either RebuildResult RebuildResult → Maybe PaneResult
+    takeOne ∷ Either RebuildResult RebuildResult → Maybe PscFailure
     takeOne (Right (RebuildResult warnings)) = Warning <$> head warnings
     takeOne (Left (RebuildResult errors)) = Error <$> head errors
 
-    toPaneState ∷ FilePath → Maybe PaneResult → State
+    toPaneState ∷ FilePath → Maybe PscFailure → State
     toPaneState _ (Just res) = PscError res
     toPaneState path Nothing = ModuleOk path (InProgress "building project...")
 
@@ -120,7 +121,7 @@ app srcPath libPath testPath testMain test noColor = void do
         let
           program' = do
             state ← liftEff $ readRef stateRef
-            newState ← A.run state program
+            newState ← run state program
             liftEff $ writeRef stateRef newState
         in catchError program' (liftEff <<< fail)
 

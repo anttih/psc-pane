@@ -12,7 +12,7 @@ import Node.Path (FilePath, relative)
 import PscIde.Command (RebuildError(..))
 
 import PscPane.Color (green, yellow, red)
-import PscPane.State (State(..), Progress(InProgress, Done), PaneResult(Warning, Error))
+import PscPane.State (State(..), Progress(InProgress, Done), PscFailure(Warning, Error))
 
 type Height = Int
 
@@ -30,7 +30,7 @@ formatState colorize _ _ (BuildSuccess progress) =
 formatState colorize _ _ (TestFailure output) = red' colorize "Test failure" <> "\n" <> output
 formatState colorize _ _ TestSuccess = green' colorize "All tests pass"
 
-pretty ∷ Boolean → FilePath → Height → PaneResult → String
+pretty ∷ Boolean → FilePath → Height → PscFailure → String
 pretty colorize cwd h (Warning warn) = prettyError' (yellow' colorize "Warning") cwd h warn
 pretty colorize cwd h (Error err) = prettyError' (red' colorize "Error") cwd h err
 
