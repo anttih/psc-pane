@@ -21,6 +21,8 @@ import Node.Yargs.Applicative (flag, yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde.Command (RebuildResult(RebuildResult))
 import PscIde.Server (stopServer)
+
+import PscPane.Config (Config)
 import PscPane.Parser (PscResult(PscResult))
 import PscPane.Pretty (PaneState(..), Progress(InProgress, Done), PaneResult(Warning, Error))
 import PscPane.Server (startPscIdeServer)
@@ -98,18 +100,20 @@ app srcPath libPath testPath testMain test noColor = void do
   runAff fail pure do
     running ← startPscIdeServer cwd $ range 4242 4252
     port ← maybe (throwError (error "Cannot start psc-ide-server")) pure running
-    stateRef ← liftEff $ newRef { screen
-                                , box
-                                , port
-                                , cwd
-                                , srcPath
-                                , libPath
-                                , testPath
-                                , testMain
-                                , test
-                                , prevPaneState: InitialBuild
-                                , colorize: not noColor
-                                }
+    let config ∷ Config
+        config = { screen
+                 , box
+                 , port
+                 , cwd
+                 , srcPath
+                 , libPath
+                 , testPath
+                 , testMain
+                 , test
+                 , prevPaneState: InitialBuild
+                 , colorize: not noColor
+                 }
+    stateRef ← liftEff $ newRef config
     let
       runCmd ∷ A.Action Unit → AffN Unit
       runCmd program =

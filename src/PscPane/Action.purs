@@ -25,11 +25,12 @@ import Node.Stream (onDataString)
 import Node.Encoding (Encoding(UTF8))
 import Node.Path as Path
 
-import Blessed (Screen, Box, render, setContent)
+import Blessed (render, setContent)
 
 import PscIde (load, rebuild)
 import PscIde.Command (RebuildResult)
 
+import PscPane.Config (Config)
 import PscPane.Types (EffN, AffN)
 import PscPane.Parser (PscResult)
 import PscPane.Pretty (PaneState, formatState)
@@ -69,21 +70,7 @@ drawPaneState state = liftF (DrawPaneState state unit)
 showError ∷ String → Action Unit
 showError err = liftF (ShowError err unit)
 
-type State =
-  { port ∷ Int
-  , cwd ∷ String
-  , srcPath ∷ String
-  , libPath ∷ String
-  , testPath ∷ String
-  , testMain ∷ String
-  , test ∷ Boolean
-  , screen ∷ Screen
-  , box ∷ Box
-  , prevPaneState ∷ PaneState
-  , colorize ∷ Boolean
-  }
-
-appN ∷ ActionF ~> StateT State AffN
+appN ∷ ActionF ~> StateT Config AffN
 appN (RebuildModule path f) = do
   { port } ← get
   res ← lift $ rebuild port path
@@ -165,7 +152,7 @@ readPscJson err = findFirst jsonOutput lines
   findFirst ∷ (String → Maybe PscResult) → Array String → Maybe PscResult
   findFirst f xs = unwrap (fold (map (First <<< f) xs))
 
-run ∷ ∀ a. State → Action a → AffN State
+run ∷ ∀ a. Config → Action a → AffN Config
 run state program = execStateT (foldFree appN program) state
 
 foreign import spawn ∷ Fn2 String (Buffer → EffN Unit) (EffN Unit)
