@@ -2,17 +2,14 @@ module PscPane.DSL where
 
 import Prelude
 import Control.Monad.Free (Free, liftF)
-import Data.Either (Either)
-import PscIde.Command (RebuildResult)
 import Data.Maybe (Maybe)
 
-import PscPane.State (State)
-import PscPane.Parser(PscResult)
+import PscPane.State (State, PscFailure)
 
 data ActionF a
-  = RebuildModule String (Either RebuildResult RebuildResult → a)
+  = RebuildModule String (Maybe PscFailure → a)
   | LoadModules a
-  | BuildProject (PscResult → a)
+  | BuildProject (Maybe PscFailure → a)
   | DrawPaneState State a
   | ShowError String a
   | RunTests (Maybe String → a)
@@ -20,13 +17,13 @@ data ActionF a
   
 type Action a = Free ActionF a
 
-rebuildModule ∷ String → Action (Either RebuildResult RebuildResult)
+rebuildModule ∷ String → Action (Maybe PscFailure)
 rebuildModule path = liftF (RebuildModule path id)
 
 loadModules ∷ Action Unit
 loadModules = liftF (LoadModules unit)
 
-buildProject ∷ Action PscResult
+buildProject ∷ Action (Maybe PscFailure)
 buildProject = liftF (BuildProject id)
 
 runTests ∷ Action (Maybe String)

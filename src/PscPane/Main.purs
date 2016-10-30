@@ -8,7 +8,6 @@ import Control.Monad.Eff.Exception (Error, error, message)
 import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
 import Control.Monad.Error.Class (throwError, catchError)
 import Control.Parallel.Class (sequential, parallel)
-import Data.Array (head)
 import Data.Either (Either(..))
 import Data.Foldable (any)
 import Data.List (range)
@@ -17,15 +16,13 @@ import Node.Path (FilePath)
 import Node.Process as P
 import Node.Yargs.Applicative (flag, yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
-import PscIde.Command (RebuildResult(RebuildResult))
 import PscIde.Server (stopServer)
 
 import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen)
 import PscPane.DSL as A
 import PscPane.Config (Config)
 import PscPane.Interpreter (run)
-import PscPane.Parser (PscResult(PscResult))
-import PscPane.State (State(..), Progress(InProgress, Done), PscFailure(Warning, Error))
+import PscPane.State (State(..), Progress(InProgress, Done), PscFailure)
 import PscPane.Server (startPscIdeServer)
 import PscPane.Types (EffN, AffN)
 import PscPane.Watcher (watch)
@@ -37,7 +34,7 @@ buildProject ∷ A.Action Unit
 buildProject = do
   err ← A.buildProject
   A.loadModules
-  case firstFailure err of
+  case err of
     Just res →
       A.drawPaneState (PscError res)
     Nothing → do
@@ -54,14 +51,6 @@ buildProject = do
         
   pure unit
 
-  where
-
-  firstFailure ∷ PscResult → Maybe PscFailure
-  firstFailure (PscResult { warnings: [], errors: [] }) = Nothing
-  firstFailure (PscResult { warnings: [], errors: errors }) = Error <$> head errors
-  firstFailure (PscResult { warnings: warnings, errors: [] }) = Warning <$> head warnings
-  firstFailure (PscResult { warnings: _, errors: errors }) = Error <$> head errors
-
 initialBuild ∷ A.Action Unit
 initialBuild = do
   A.drawPaneState InitialBuild
@@ -69,19 +58,15 @@ initialBuild = do
 
 rebuildModule ∷ String → A.Action Unit
 rebuildModule path = do
-  errors ← A.rebuildModule path
-  let firstErr = takeOne errors
+  firstErr ← A.rebuildModule path
   A.drawPaneState (toPaneState path firstErr)
   when (isNothing firstErr) buildProject
   pure unit
-    where
-    takeOne ∷ Either RebuildResult RebuildResult → Maybe PscFailure
-    takeOne (Right (RebuildResult warnings)) = Warning <$> head warnings
-    takeOne (Left (RebuildResult errors)) = Error <$> head errors
 
-    toPaneState ∷ FilePath → Maybe PscFailure → State
-    toPaneState _ (Just res) = PscError res
-    toPaneState path Nothing = ModuleOk path (InProgress "building project...")
+  where
+  toPaneState ∷ FilePath → Maybe PscFailure → State
+  toPaneState _ (Just res) = PscError res
+  toPaneState path Nothing = ModuleOk path (InProgress "building project...")
 
 app ∷ String → String → String → String → Boolean → Boolean → EffN Unit
 app srcPath libPath testPath testMain test noColor = void do

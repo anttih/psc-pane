@@ -9,6 +9,7 @@ import Control.Monad.Eff.Exception (error)
 import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
 import Control.Monad.State.Trans (StateT, lift, execStateT)
 import Control.Monad.State.Class (get, modify)
+import Data.Array (head)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Newtype (unwrap)
@@ -23,20 +24,29 @@ import Node.Stream (onDataString)
 import Node.Encoding (Encoding(UTF8))
 import Node.Path as Path
 import PscIde (load, rebuild)
+import PscIde.Command (RebuildResult(..))
 
 import Blessed (render, setContent)
 import PscPane.Config (Config)
 import PscPane.Types (EffN, AffN)
-import PscPane.Parser (PscResult)
+import PscPane.Parser (PscResult(..))
 import PscPane.Pretty (formatState)
 import PscPane.Output (display)
 import PscPane.DSL (ActionF(..), Action)
+import PscPane.State (PscFailure(..))
 
 appN ∷ ActionF ~> StateT Config AffN
 appN (RebuildModule path f) = do
   { port } ← get
   res ← lift $ rebuild port path
-  either (throwError <<< error) (pure <<< f) res
+  either (throwError <<< error) (pure <<< f <<< takeOne) res
+
+  where
+
+  takeOne ∷ Either RebuildResult RebuildResult → Maybe PscFailure
+  takeOne (Right (RebuildResult warnings)) = Warning <$> head warnings
+  takeOne (Left (RebuildResult errors)) = Error <$> head errors
+
 appN (LoadModules a) = do
   { port } ← get
   lift $ const a <$> load port [] []
@@ -96,23 +106,29 @@ appN (DrawPaneState state a) = do
   pure a
 appN (ShowError err a) = lift $ const a <$> display err
 
-readPscJson ∷ String → Maybe PscResult
+readPscJson ∷ String → Maybe (Maybe PscFailure)
 readPscJson err = findFirst jsonOutput lines
   where
   lines ∷ Array String
   lines = split (Pattern "\n") $ trim err
 
-  jsonOutput ∷ String → Maybe PscResult
+  jsonOutput ∷ String → Maybe (Maybe PscFailure)
   jsonOutput line = eitherToMaybe do
     json ← jsonParser line
-    decodeJson json
+    firstFailure <$> decodeJson json
 
   eitherToMaybe ∷ forall e a. Either e a → Maybe a
   eitherToMaybe (Right a) = Just a
   eitherToMaybe _ = Nothing
 
-  findFirst ∷ (String → Maybe PscResult) → Array String → Maybe PscResult
-  findFirst f xs = unwrap (fold (map (First <<< f) xs))
+  firstFailure ∷ PscResult → Maybe PscFailure
+  firstFailure (PscResult { warnings: [], errors: [] }) = Nothing
+  firstFailure (PscResult { warnings: [], errors: errors }) = Error <$> head errors
+  firstFailure (PscResult { warnings: warnings, errors: [] }) = Warning <$> head warnings
+  firstFailure (PscResult { warnings: _, errors: errors }) = Error <$> head errors
+
+findFirst ∷ ∀ a. (String → Maybe a) → Array String → Maybe a
+findFirst f xs = unwrap (fold (map (First <<< f) xs))
 
 run ∷ ∀ a. Config → Action a → AffN Config
 run state program = execStateT (foldFree appN program) state
