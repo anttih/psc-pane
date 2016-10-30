@@ -24,7 +24,7 @@ import PscIde.Server (stopServer)
 
 import PscPane.Config (Config)
 import PscPane.Parser (PscResult(PscResult))
-import PscPane.Pretty (PaneState(..), Progress(InProgress, Done), PaneResult(Warning, Error))
+import PscPane.State (State(..), Progress(InProgress, Done), PaneResult(Warning, Error))
 import PscPane.Server (startPscIdeServer)
 import PscPane.Types (EffN, AffN)
 import PscPane.Watcher (watch)
@@ -78,7 +78,7 @@ rebuildModule path = do
     takeOne (Right (RebuildResult warnings)) = Warning <$> head warnings
     takeOne (Left (RebuildResult errors)) = Error <$> head errors
 
-    toPaneState ∷ FilePath → Maybe PaneResult → PaneState
+    toPaneState ∷ FilePath → Maybe PaneResult → State
     toPaneState _ (Just res) = PscError res
     toPaneState path Nothing = ModuleOk path (InProgress "building project...")
 

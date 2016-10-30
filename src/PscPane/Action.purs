@@ -33,7 +33,8 @@ import PscIde.Command (RebuildResult)
 import PscPane.Config (Config)
 import PscPane.Types (EffN, AffN)
 import PscPane.Parser (PscResult)
-import PscPane.Pretty (PaneState, formatState)
+import PscPane.State (State)
+import PscPane.Pretty (formatState)
 import PscPane.Output (display)
 
 --import Debug.Trace (spy)
@@ -42,7 +43,7 @@ data ActionF a
   = RebuildModule String (Either RebuildResult RebuildResult → a)
   | LoadModules a
   | BuildProject (PscResult → a)
-  | DrawPaneState PaneState a
+  | DrawPaneState State a
   | ShowError String a
   | RunTests (Maybe String → a)
   | ShouldRunTests (Boolean → a)
@@ -64,7 +65,7 @@ runTests = liftF (RunTests id)
 shouldRunTests ∷ Action Boolean
 shouldRunTests = liftF (ShouldRunTests id)
 
-drawPaneState ∷ PaneState → Action Unit
+drawPaneState ∷ State → Action Unit
 drawPaneState state = liftF (DrawPaneState state unit)
 
 showError ∷ String → Action Unit

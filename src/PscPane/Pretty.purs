@@ -9,27 +9,18 @@ import Data.String.Regex.Flags (RegexFlags(..), global)
 import Data.Maybe (Maybe(..), maybe)
 import Data.List (List(..), fromFoldable)
 import Node.Path (FilePath, relative)
-
 import PscIde.Command (RebuildError(..))
+
 import PscPane.Color (green, yellow, red)
+import PscPane.State (State(..), Progress(InProgress, Done), PaneResult(Warning, Error))
 
 type Height = Int
-
-data Progress = InProgress String | Done
 
 showProgress ∷ Progress → String
 showProgress (InProgress progress) = "(" <> progress <> ")"
 showProgress Done = ""
 
-data PaneState
-  = InitialBuild
-  | BuildSuccess Progress
-  | ModuleOk FilePath Progress
-  | PscError PaneResult
-  | TestFailure String
-  | TestSuccess
-
-formatState ∷ Boolean → FilePath → Height → PaneState → String
+formatState ∷ Boolean → FilePath → Height → State → String
 formatState _ _ _ InitialBuild = "Building project..."
 formatState colorize cwd height (PscError res) = pretty colorize cwd height res
 formatState colorize _ _ (ModuleOk path progress) =
@@ -38,8 +29,6 @@ formatState colorize _ _ (BuildSuccess progress) =
   green' colorize "Build successful " <> showProgress progress
 formatState colorize _ _ (TestFailure output) = red' colorize "Test failure" <> "\n" <> output
 formatState colorize _ _ TestSuccess = green' colorize "All tests pass"
-
-data PaneResult = Warning RebuildError | Error RebuildError
 
 pretty ∷ Boolean → FilePath → Height → PaneResult → String
 pretty colorize cwd h (Warning warn) = prettyError' (yellow' colorize "Warning") cwd h warn
