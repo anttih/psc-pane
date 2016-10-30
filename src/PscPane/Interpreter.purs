@@ -11,14 +11,12 @@ import Control.Monad.State.Trans (StateT, lift, execStateT)
 import Control.Monad.State.Class (get, modify)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Parser (jsonParser)
-import Data.Function.Uncurried (Fn2, runFn2)
 import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..))
 import Data.Maybe.First (First(..))
 import Data.Foldable (fold)
 import Data.Either (Either(..), either)
 import Data.String (Pattern(..), Replacement(..), split, trim, replace)
-import Node.Buffer (Buffer)
 import Node.ChildProcess (Exit(BySignal, Normally), defaultSpawnOptions, onClose, stderr)
 import Node.ChildProcess as CP
 import Node.Stream (onDataString)
@@ -118,10 +116,5 @@ readPscJson err = findFirst jsonOutput lines
 
 run ∷ ∀ a. Config → Action a → AffN Config
 run state program = execStateT (foldFree appN program) state
-
-foreign import spawn ∷ Fn2 String (Buffer → EffN Unit) (EffN Unit)
-
-spawnAff ∷ String → AffN Buffer
-spawnAff cmd = makeAff (\error success → runFn2 spawn cmd success)
 
 foreign import rows ∷ EffN Int
