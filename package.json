@@ -20,11 +20,10 @@
     "test": "test"
   },
   "dependencies": {
-    "blessed": "^0.1.81",
-    "concat-stream": "^1.5.1",
-    "minimatch": "^3.0.0",
-    "watchpack": "^0.2.9",
-    "yargs": "^4.7.0",
+    "blessed": "0.1.81",
+    "minimatch": "3.0.3",
+    "watchpack": "1.1.0",
+    "yargs": "4.7.0",
     "purescript": "0.10.1"
   }
 }
