@@ -58,6 +58,7 @@ initialBuild = do
 
 rebuildModule ∷ String → A.Action Unit
 rebuildModule path = do
+  A.drawPaneState (CompilingModule path)
   firstErr ← A.rebuildModule path
   A.drawPaneState (toPaneState path firstErr)
   when (isNothing firstErr) buildProject
@@ -165,7 +166,7 @@ main = do
         (Left "test")
         true
     <*> yarg "test-main" []
-        (Just "Module with main function to run for tests. Default: \"Test.Main\"")
+        (Just "Module with main function for running tests. Default: \"Test.Main\"")
         (Left "Test.Main")
         true
     <*> flag "t" ["test"] (Just "Run tests after a successful build.")

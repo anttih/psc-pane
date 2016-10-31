@@ -13,6 +13,7 @@ data PscFailure = Warning RebuildError | Error RebuildError
 
 data State
   = InitialBuild
+  | CompilingModule FilePath
   | BuildSuccess Progress
   | ModuleOk FilePath Progress
   | PscError PscFailure

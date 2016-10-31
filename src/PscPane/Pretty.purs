@@ -23,6 +23,7 @@ showProgress Done = ""
 formatState ∷ Boolean → FilePath → Height → State → String
 formatState _ _ _ InitialBuild = "Building project..."
 formatState colorize cwd height (PscError res) = pretty colorize cwd height res
+formatState colorize _ _ (CompilingModule path ) = "Compiling " <> path
 formatState colorize _ _ (ModuleOk path progress) =
   green' colorize "Module OK" <> " " <> path <> " " <> showProgress progress
 formatState colorize _ _ (BuildSuccess progress) =
