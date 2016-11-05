@@ -44,8 +44,8 @@ buildProject = do
           A.drawPaneState (BuildSuccess (InProgress "running tests..."))
           testResult ← A.runTests
           case testResult of
-            Nothing → A.drawPaneState TestSuccess
-            Just out → A.drawPaneState (TestFailure out)
+            Left out → A.drawPaneState (TestFailure out)
+            Right _ → A.drawPaneState TestSuccess
         else 
           A.drawPaneState (BuildSuccess Done)
         

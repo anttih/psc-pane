@@ -7,6 +7,8 @@ module PscPane.State
 import Node.Path (FilePath)
 import PscIde.Command (RebuildError)
 
+import PscPane.Spawn (SpawnOutput)
+
 data Progress = InProgress String | Done
 
 data PscFailure = Warning RebuildError | Error RebuildError
@@ -17,6 +19,6 @@ data State
   | BuildSuccess Progress
   | ModuleOk FilePath Progress
   | PscError PscFailure
-  | TestFailure String
+  | TestFailure SpawnOutput
   | TestSuccess
 

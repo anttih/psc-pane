@@ -13,6 +13,7 @@ import PscIde.Command (RebuildError(..))
 
 import PscPane.Color (green, yellow, red)
 import PscPane.State (State(..), Progress(InProgress, Done), PscFailure(Warning, Error))
+import PscPane.Spawn (SpawnOutput)
 
 type Height = Int
 
@@ -125,11 +126,16 @@ prettyMessage height lines = joinLines (fit height lines)
       then Just res
       else try rest res
 
+formatTestOutput ∷ Height → SpawnOutput → String
+formatTestOutput height { stdOut, stdErr } | stdErr == "" = takeLines height stdOut
+formatTestOutput height { stdErr } = takeLines height stdErr
+
 splitLines ∷ String → Array String
 splitLines = split (Pattern "\n")
 
 joinLines ∷ Array String → String
 joinLines = joinWith "\n"
 
-formatTestOutput ∷ Height → String → String
-formatTestOutput height = joinLines <<< take height <<< splitLines
+takeLines ∷ Height → String → String
+takeLines height = joinLines <<< take height <<< splitLines
+

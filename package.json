@@ -12,7 +12,7 @@
   "scripts": {
     "psc": "psc 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
     "psc-bundle": "psc-bundle \"output/*/*.js\" --output psc-pane.js --module PscPane.Main --main PscPane.Main",
-    "psc-pane": "npm run build && ./index.js",
+    "psc-pane": "npm run build && ./index.js -t",
     "build": "npm run psc && npm run psc-bundle",
     "prepublish": "bower install && npm run build"
   },

@@ -11,9 +11,11 @@ import Control.Monad.State.Trans (StateT, lift, execStateT)
 import Control.Monad.State.Class (get, modify)
 import Data.Array (head)
 import Data.Maybe (Maybe(..))
+import Data.Monoid (mempty)
 import Data.Either (Either(..), either)
 import Data.String (Pattern(..), Replacement(..), replace)
-import Node.ChildProcess (Exit(BySignal, Normally), defaultSpawnOptions, onClose, stderr)
+import Node.ChildProcess (Exit(BySignal, Normally), defaultSpawnOptions,
+                          onClose, stdout, stderr)
 import Node.ChildProcess as CP
 import Node.Stream (onDataString)
 import Node.Encoding (Encoding(UTF8))
@@ -30,6 +32,7 @@ import PscPane.Output (display)
 import PscPane.DSL (ActionF(..), Action)
 import PscPane.State (PscFailure(..))
 
+
 appN ∷ ActionF ~> StateT Config AffN
 appN (RebuildModule path f) = do
   { port } ← get
@@ -45,10 +48,15 @@ appN (LoadModules a) = do
   { port } ← get
   lift $ const a <$> load port [] []
 appN (BuildProject f) = do
-  { screen, box, srcPath, libPath } ← get
+  { screen, box, srcPath, libPath, testPath, test } ← get
   let srcGlob = Path.concat [srcPath, "**", "*.purs"]
       libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
-  child ← liftEff $ CP.spawn "psc" [srcGlob, libGlob, "--json-errors"] defaultSpawnOptions
+      testSrcGlob = Path.concat [testPath, "**", "*.purs"]
+      args
+        = ["--json-errors", srcGlob, libGlob]
+        <> if test then pure testSrcGlob else mempty
+
+  child ← liftEff $ CP.spawn "psc" args defaultSpawnOptions
   output ← liftEff $ newRef ""
   res ← lift $ makeAff \_ success -> do
     onDataString (stderr child) UTF8 \s → do
@@ -66,16 +74,27 @@ appN (RunTests f) = do
   let modulePath = "./output/" <> jsEscape testMain
   child ← liftEff $
     CP.spawn "node" ["-e", "require('" <> modulePath <> "').main();"] defaultSpawnOptions
-  output ← liftEff $ newRef ""
+  errRef ← liftEff $ newRef ""
+  stdRef ← liftEff $ newRef ""
   res ← lift $ makeAff \_ succ -> do
+    onDataString (stdout child) UTF8 \s → do
+      current ← readRef stdRef
+      writeRef stdRef (current <> s)
+
     onDataString (stderr child) UTF8 \s → do
-      current ← readRef output
-      writeRef output (current <> s)
+      current ← readRef errRef
+      writeRef errRef (current <> s)
 
     onClose child \c → case c of
-      (Normally 0) → readRef output >>= const (succ Nothing)
-      (Normally n) → readRef output >>= succ <<< Just
-      (BySignal _) → succ $ Just "Signal interrupted test"
+      (Normally 0) → do
+        stdOut ← readRef stdRef
+        stdErr ← readRef errRef
+        succ $ Right { stdOut, stdErr }
+      (Normally n) → do
+        stdOut ← readRef stdRef
+        stdErr ← readRef errRef
+        succ $ Left { stdOut, stdErr }
+      (BySignal _) → succ $ Left { stdErr: "Signal interrupted test", stdOut: "" }
   pure $ f res
 
   where
