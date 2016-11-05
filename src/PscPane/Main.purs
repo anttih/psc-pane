@@ -4,6 +4,7 @@ import Control.Alt ((<|>))
 import Control.Coroutine (Consumer, runProcess, consumer, ($$))
 import Control.Monad.Aff (runAff)
 import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console as Console
 import Control.Monad.Eff.Exception (Error, error, message)
 import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
 import Control.Monad.Error.Class (throwError, catchError)
@@ -18,9 +19,9 @@ import Node.Yargs.Applicative (flag, yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde.Server (stopServer)
 
-import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen)
+import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen,
+               destroy)
 import PscPane.DSL as A
-import PscPane.Config (Config)
 import PscPane.Interpreter (run)
 import PscPane.State (State(..), Progress(InProgress, Done), PscFailure)
 import PscPane.Server (startPscIdeServer)
@@ -76,29 +77,25 @@ app srcPath libPath testPath testMain test noColor = void do
     screen = mkScreen { smartCSR: true }
     box = mkBox { width: "100%", height: "100%", content: "" }
 
-    fail ∷ Error → EffN Unit
-    fail err =
+    exit ∷ Error → EffN Unit
+    exit err = do
+      destroy screen
+      Console.error $ "Error: " <> message err
+      P.exit (-1)
+
+    showError ∷ Error → EffN Unit
+    showError err =
       let msg = "Error: " <> message err <> " (type q to quit)"
       in setContent box msg *> render screen
 
   append screen box
   render screen
 
-  runAff fail pure do
+  runAff exit pure do
     running ← startPscIdeServer cwd $ range 4242 4252
     port ← maybe (throwError (error "Cannot start psc-ide-server")) pure running
-    let config ∷ Config
-        config = { screen
-                 , box
-                 , port
-                 , cwd
-                 , srcPath
-                 , libPath
-                 , testPath
-                 , testMain
-                 , test
-                 , prevPaneState: InitialBuild
-                 , colorize: not noColor
+    let config = { screen, box, port, cwd, srcPath, libPath, testPath
+                 , testMain, test, prevPaneState: InitialBuild, colorize: not noColor
                  }
     stateRef ← liftEff $ newRef config
     let
@@ -109,7 +106,7 @@ app srcPath libPath testPath testMain test noColor = void do
             state ← liftEff $ readRef stateRef
             newState ← run state program
             liftEff $ writeRef stateRef newState
-        in catchError program' (liftEff <<< fail)
+        in catchError program' (liftEff <<< showError)
 
       fileListener ∷ Consumer String AffN Unit
       fileListener = consumer \path → do

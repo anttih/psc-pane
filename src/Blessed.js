@@ -54,3 +54,9 @@ exports.setContent = function (box) {
     };
   };
 };
+
+exports.destroy = function (screen) {
+  return function () {
+    screen.destroy();
+  };
+};

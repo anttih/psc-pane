@@ -55,3 +55,5 @@ type BoxOptions =
 foreign import mkBox ∷ BoxOptions → Box
 
 foreign import setContent ∷ ∀ eff. Box → String → Eff (blessed ∷ BLESSED | eff) Unit
+
+foreign import destroy ∷ ∀ eff. Screen → Eff (blessed ∷ BLESSED | eff) Unit

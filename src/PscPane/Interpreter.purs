@@ -51,7 +51,7 @@ appN (BuildProject f) = do
   res ← either _.stdErr _.stdErr <$> lift (spawn "psc" args)
   case readPscJson res of
     Nothing →
-      let msg = "Could not read psc output. Make sure you use the --json-errors flag for psc."
+      let msg = "Could not read psc output."
       in throwError (error msg)
     Just res' → pure (f res')
 appN (RunTests f) = do
