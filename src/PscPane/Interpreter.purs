@@ -1,12 +1,10 @@
 module PscPane.Interpreter where
 
 import Prelude
-import Control.Monad.Aff (makeAff)
 import Control.Monad.Free (foldFree)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (error)
-import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
 import Control.Monad.State.Trans (StateT, lift, execStateT)
 import Control.Monad.State.Class (get, modify)
 import Data.Array (head)
@@ -14,11 +12,6 @@ import Data.Maybe (Maybe(..))
 import Data.Monoid (mempty)
 import Data.Either (Either(..), either)
 import Data.String (Pattern(..), Replacement(..), replace)
-import Node.ChildProcess (Exit(BySignal, Normally), defaultSpawnOptions,
-                          onClose, stdout, stderr)
-import Node.ChildProcess as CP
-import Node.Stream (onDataString)
-import Node.Encoding (Encoding(UTF8))
 import Node.Path as Path
 import PscIde (load, rebuild)
 import PscIde.Command (RebuildResult(..))
@@ -31,6 +24,7 @@ import PscPane.Pretty (formatState)
 import PscPane.Output (display)
 import PscPane.DSL (ActionF(..), Action)
 import PscPane.State (PscFailure(..))
+import PscPane.Spawn (spawn)
 
 
 appN ∷ ActionF ~> StateT Config AffN
@@ -52,18 +46,9 @@ appN (BuildProject f) = do
   let srcGlob = Path.concat [srcPath, "**", "*.purs"]
       libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
       testSrcGlob = Path.concat [testPath, "**", "*.purs"]
-      args
-        = ["--json-errors", srcGlob, libGlob]
-        <> if test then pure testSrcGlob else mempty
-
-  child ← liftEff $ CP.spawn "psc" args defaultSpawnOptions
-  output ← liftEff $ newRef ""
-  res ← lift $ makeAff \_ success -> do
-    onDataString (stderr child) UTF8 \s → do
-      current ← readRef output
-      writeRef output (current <> s)
-    onClose child \c → readRef output >>= success
-
+      args = ["--json-errors", srcGlob, libGlob]
+           <> if test then pure testSrcGlob else mempty
+  res ← either _.stdErr _.stdErr <$> lift (spawn "psc" args)
   case readPscJson res of
     Nothing →
       let msg = "Could not read psc output. Make sure you use the --json-errors flag for psc."
@@ -72,29 +57,7 @@ appN (BuildProject f) = do
 appN (RunTests f) = do
   { testMain } ← get
   let modulePath = "./output/" <> jsEscape testMain
-  child ← liftEff $
-    CP.spawn "node" ["-e", "require('" <> modulePath <> "').main();"] defaultSpawnOptions
-  errRef ← liftEff $ newRef ""
-  stdRef ← liftEff $ newRef ""
-  res ← lift $ makeAff \_ succ -> do
-    onDataString (stdout child) UTF8 \s → do
-      current ← readRef stdRef
-      writeRef stdRef (current <> s)
-
-    onDataString (stderr child) UTF8 \s → do
-      current ← readRef errRef
-      writeRef errRef (current <> s)
-
-    onClose child \c → case c of
-      (Normally 0) → do
-        stdOut ← readRef stdRef
-        stdErr ← readRef errRef
-        succ $ Right { stdOut, stdErr }
-      (Normally n) → do
-        stdOut ← readRef stdRef
-        stdErr ← readRef errRef
-        succ $ Left { stdOut, stdErr }
-      (BySignal _) → succ $ Left { stdErr: "Signal interrupted test", stdOut: "" }
+  res ← lift $ spawn "node" ["-e", "require('" <> modulePath <> "').main();"]
   pure $ f res
 
   where
