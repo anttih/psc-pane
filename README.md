@@ -1,5 +1,7 @@
 # psc-pane
 
+[![npm version](https://badge.fury.io/js/psc-pane.svg)](https://badge.fury.io/js/psc-pane)
+
 Auto reloading compiler for PureScript inspired by
 [ghcid](https://github.com/ndmitchell/ghcid).
 
