@@ -47,6 +47,8 @@ You can change the source directory (`src` by default) with `--src-path`.
 
     psc-pane --src-path sources
 
+For the full list of options see `--help`.
+
 ### Running tests
 
 `psc-pane` won't run any tests unless you use the `-t` (`--test`) flag. When
