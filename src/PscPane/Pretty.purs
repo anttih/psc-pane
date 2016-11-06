@@ -7,31 +7,33 @@ import Data.String (Pattern(..), joinWith, contains, split, trim)
 import Data.String.Regex as R
 import Data.String.Regex.Flags (RegexFlags(..), global)
 import Data.Maybe (Maybe(..), maybe)
-import Data.List (List(..), fromFoldable)
+import Data.List (List(..), (:))
 import Node.Path (FilePath, relative)
-
 import PscIde.Command (RebuildError(..))
+
 import PscPane.Color (green, yellow, red)
+import PscPane.State (State(..), Progress(InProgress, Done), PscFailure(Warning, Error))
+import PscPane.Spawn (SpawnOutput)
 
 type Height = Int
 
-type Progress = String
+showProgress ∷ Progress → String
+showProgress (InProgress progress) = "(" <> progress <> ")"
+showProgress Done = ""
 
-data PaneState
-  = InitialBuild
-  | BuildSuccess
-  | ModuleOk FilePath Progress
-  | PscError PaneResult
-
-formatState ∷ Boolean → FilePath → Height → PaneState → String
+formatState ∷ Boolean → FilePath → Height → State → String
 formatState _ _ _ InitialBuild = "Building project..."
 formatState colorize cwd height (PscError res) = pretty colorize cwd height res
-formatState colorize _ _ (ModuleOk path progress) = green' colorize "Module OK" <> " " <> path <> " (" <> progress <> ")"
-formatState colorize _ _ BuildSuccess = green' colorize "Build successful"
+formatState colorize _ _ (CompilingModule path ) = "Compiling " <> path
+formatState colorize _ _ (ModuleOk path progress) =
+  green' colorize "Module OK" <> " " <> path <> " " <> showProgress progress
+formatState colorize _ _ (BuildSuccess progress) =
+  green' colorize "Build successful " <> showProgress progress
+formatState colorize _ height (TestFailure output) = red' colorize "Test failure" <>
+                                                "\n" <> formatTestOutput height output
+formatState colorize _ _ TestSuccess = green' colorize "All tests pass"
 
-data PaneResult = Warning RebuildError | Error RebuildError
-
-pretty ∷ Boolean → FilePath → Height → PaneResult → String
+pretty ∷ Boolean → FilePath → Height → PscFailure → String
 pretty colorize cwd h (Warning warn) = prettyError' (yellow' colorize "Warning") cwd h warn
 pretty colorize cwd h (Error err) = prettyError' (red' colorize "Error") cwd h err
 
@@ -50,7 +52,7 @@ red' fale = id
 prettyError' ∷ String → FilePath → Height → RebuildError → String
 prettyError' t cwd h (RebuildError err@{ position }) =
   t <> " " <> (filenameOrModule cwd err) <> (prettyPosition position)
-  <> "\n" <> (prettyMessage (h - 1) (split (Pattern "\n") err.message))
+  <> "\n" <> (prettyMessage (h - 1) (splitLines err.message))
 
 filenameOrModule ∷ forall xs
   . FilePath
@@ -66,7 +68,7 @@ prettyPosition (Just { line, column }) =
 prettyPosition Nothing = ""
 
 prettyMessage ∷ Height → Array String → String
-prettyMessage height lines = joinWith "\n" (fit height lines)
+prettyMessage height lines = joinLines (fit height lines)
   where
   -- | Either we can fit the message intelligently or we just give up and
   -- | force the height
@@ -75,14 +77,15 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
 
   -- | Our fitting strategy
   fitted ∷ Array String → Maybe (Array String)
-  fitted lines = try (fromFoldable [ id
-                                   , trimLines
-                                   , withoutExtraLines
-                                   , withoutWikiLink
-                                   , withoutEmptyLines
-                                   , withoutTypeInfo
-                                   , take height
-                                   ]) lines
+  fitted lines = try ( id
+                     : trimLines
+                     : withoutExtraLines
+                     : withoutWikiLink
+                     : withoutEmptyLines
+                     : withoutTypeInfo
+                     : take height
+                     : Nil
+                     ) lines
 
   trimLines ∷ Array String → Array String
   trimLines lines = replace (R.regex "^\n+|\n+$" global) "" lines
@@ -99,7 +102,7 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
                     }
 
   replace ∷ Either String R.Regex → String → Array String → Array String
-  replace (Right regex) s lines = split (Pattern "\n") (R.replace regex s (joinWith "\n" lines))
+  replace (Right regex) s lines = splitLines (R.replace regex s (joinLines lines))
   replace _ _ lines = lines
 
   withoutWikiLink ∷ Array String → Array String
@@ -122,3 +125,17 @@ prettyMessage height lines = joinWith "\n" (fit height lines)
     in if (length res) <= height
       then Just res
       else try rest res
+
+formatTestOutput ∷ Height → SpawnOutput → String
+formatTestOutput height { stdOut, stdErr } | stdErr == "" = takeLines height stdOut
+formatTestOutput height { stdErr } = takeLines height stdErr
+
+splitLines ∷ String → Array String
+splitLines = split (Pattern "\n")
+
+joinLines ∷ Array String → String
+joinLines = joinWith "\n"
+
+takeLines ∷ Height → String → String
+takeLines height = joinLines <<< take height <<< splitLines
+

@@ -1,75 +1,57 @@
 module PscPane.Main where
 
-import PscPane.Action as A
-import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen)
+import Prelude hiding (append)
 import Control.Alt ((<|>))
 import Control.Coroutine (Consumer, runProcess, consumer, ($$))
 import Control.Monad.Aff (runAff)
 import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console as Console
 import Control.Monad.Eff.Exception (Error, error, message)
 import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
 import Control.Monad.Error.Class (throwError, catchError)
 import Control.Parallel.Class (sequential, parallel)
-import Data.Argonaut.Decode (decodeJson)
-import Data.Argonaut.Parser (jsonParser)
-import Data.Array (head)
 import Data.Either (Either(..))
-import Data.Foldable (any, fold)
+import Data.Foldable (any)
 import Data.List (range)
-import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), maybe, isNothing)
-import Data.Maybe.First (First(..))
-import Data.String (Pattern(..), split, trim)
 import Node.Path (FilePath)
 import Node.Process as P
 import Node.Yargs.Applicative (flag, yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
-import PscIde.Command (RebuildResult(RebuildResult))
 import PscIde.Server (stopServer)
-import PscPane.Parser (PscResult(PscResult))
-import PscPane.Pretty (PaneState(InitialBuild, BuildSuccess, ModuleOk, PscError), PaneResult(Warning, Error))
+
+import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen,
+               destroy)
+import PscPane.DSL as A
+import PscPane.Interpreter (run)
+import PscPane.State (State(..), Progress(InProgress, Done), PscFailure)
 import PscPane.Server (startPscIdeServer)
 import PscPane.Types (EffN, AffN)
 import PscPane.Watcher (watch)
-import Prelude hiding (append)
+import PscPane.Config (Options)
 
 foreign import minimatch ∷ String → String → Boolean
-
-readErr ∷ String → Maybe PscResult
-readErr err = findFirst jsonOutput lines
-  where
-  lines ∷ Array String
-  lines = split (Pattern "\n") $ trim err
-
-  jsonOutput ∷ String → Maybe PscResult
-  jsonOutput line = eitherToMaybe do
-    json ← jsonParser line
-    decodeJson json
-
-  eitherToMaybe ∷ forall e a. Either e a → Maybe a
-  eitherToMaybe (Right a) = Just a
-  eitherToMaybe _ = Nothing
-
-  findFirst ∷ (String → Maybe PscResult) → Array String → Maybe PscResult
-  findFirst f xs = unwrap (fold (map (First <<< f) xs))
 
 buildProject ∷ A.Action Unit
 buildProject = do
   err ← A.buildProject
   A.loadModules
-  maybe (A.showError err)
-        (A.drawPaneState <<< toPaneState <<< firstFailure)
-        (readErr err)
+  case err of
+    Just res →
+      A.drawPaneState (PscError res)
+    Nothing → do
+      shouldRunTests ← A.shouldRunTests
+      if shouldRunTests then
+        do
+          A.drawPaneState (BuildSuccess (InProgress "running tests..."))
+          testResult ← A.runTests
+          case testResult of
+            Left out → A.drawPaneState (TestFailure out)
+            Right _ → A.drawPaneState TestSuccess
+        else 
+          A.drawPaneState (BuildSuccess Done)
+        
   pure unit
-    where
-    firstFailure ∷ PscResult → Maybe PaneResult
-    firstFailure (PscResult { warnings: [], errors: [] }) = Nothing
-    firstFailure (PscResult { warnings: [], errors: errors }) = Error <$> head errors
-    firstFailure (PscResult { warnings: warnings, errors: [] }) = Warning <$> head warnings
-    firstFailure (PscResult { warnings: _, errors: errors }) = Error <$> head errors
-
-    toPaneState ∷ Maybe PaneResult → PaneState
-    toPaneState = maybe BuildSuccess PscError
 
 initialBuild ∷ A.Action Unit
 initialBuild = do
@@ -78,55 +60,52 @@ initialBuild = do
 
 rebuildModule ∷ String → A.Action Unit
 rebuildModule path = do
-  errors ← A.rebuildModule path
-  let firstErr = takeOne errors
+  A.drawPaneState (CompilingModule path)
+  firstErr ← A.rebuildModule path
   A.drawPaneState (toPaneState path firstErr)
   when (isNothing firstErr) buildProject
   pure unit
-    where
-    takeOne ∷ Either RebuildResult RebuildResult → Maybe PaneResult
-    takeOne (Right (RebuildResult warnings)) = Warning <$> head warnings
-    takeOne (Left (RebuildResult errors)) = Error <$> head errors
 
-    toPaneState ∷ FilePath → Maybe PaneResult → PaneState
-    toPaneState _ (Just res) = PscError res
-    toPaneState path Nothing = ModuleOk path "building project..."
+  where
+  toPaneState ∷ FilePath → Maybe PscFailure → State
+  toPaneState _ (Just res) = PscError res
+  toPaneState path Nothing = ModuleOk path (InProgress "building project...")
 
-app ∷ String → Array String → Boolean → EffN Unit
-app buildCmd dirs noColor = void do
+app ∷ Options → EffN Unit
+app options@{ srcPath, testPath, test } = void do
   cwd ← P.cwd
   let
     screen = mkScreen { smartCSR: true }
     box = mkBox { width: "100%", height: "100%", content: "" }
 
-    fail ∷ Error → EffN Unit
-    fail err =
+    exit ∷ Error → EffN Unit
+    exit err = do
+      destroy screen
+      Console.error $ "Error: " <> message err
+      P.exit (-1)
+
+    showError ∷ Error → EffN Unit
+    showError err =
       let msg = "Error: " <> message err <> " (type q to quit)"
       in setContent box msg *> render screen
 
   append screen box
   render screen
 
-  runAff fail pure do
+  runAff exit pure do
     running ← startPscIdeServer cwd $ range 4242 4252
     port ← maybe (throwError (error "Cannot start psc-ide-server")) pure running
-    stateRef ← liftEff $ newRef { screen
-                                , box
-                                , port
-                                , cwd
-                                , buildCmd
-                                , prevPaneState: InitialBuild
-                                , colorize: not noColor
-                                }
+    let config = { screen, box, port, cwd, prevPaneState: InitialBuild, options }
+    stateRef ← liftEff $ newRef config
     let
       runCmd ∷ A.Action Unit → AffN Unit
       runCmd program =
         let
           program' = do
             state ← liftEff $ readRef stateRef
-            newState ← A.run state program
+            newState ← run state program
             liftEff $ writeRef stateRef newState
-        in catchError program' (liftEff <<< fail)
+        in catchError program' (liftEff <<< showError)
 
       fileListener ∷ Consumer String AffN Unit
       fileListener = consumer \path → do
@@ -154,7 +133,8 @@ app buildCmd dirs noColor = void do
       resizeP = runProcess (onResize screen $$ handleResize)
 
       watchP ∷ AffN Unit
-      watchP = runProcess (watch dirs $$ fileListener)
+      watchP = let watchDirs = if test then [srcPath, testPath] else [srcPath]
+               in runProcess (watch watchDirs $$ fileListener)
 
       quitP ∷ AffN Unit
       quitP = runProcess (onQuit screen ["q", "C-c"] $$ handleQuit)
@@ -167,15 +147,29 @@ main = do
   let setup = usage "psc-pane - Auto reloading PureScript compiler\n\nUsage: psc-pane [OPTION]"
               <> defaultHelp
               <> defaultVersion
+      options = { buildPath: _, srcPath: _, libPath: _, testPath: _, testMain: _, test: _, colorize: _}
   runY setup $
-    app
-    <$> yarg "c" ["command"]
-        (Just ("Build command. Should return JSON in stderr. "
-          <> "Default:  psc 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs' --json-errors"))
-        (Left "psc 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs' --json-errors")
-        true
-    <*> yarg "w" ["watch-path"]
-        (Just  "Directory to watch for changes (default: \"src\")")
-        (Left ["src"])
-        true
-    <*> flag "nocolor" [] (Just "Do not colorize output.")
+    map app $
+      options
+      <$> yarg "o" ["build-path" ]
+          (Just "Directory for psc output (default \"output\")")
+          (Left "output")
+          true
+      <*> yarg "src-path" []
+          (Just "Directory for .purs source files (default: \"src\")")
+          (Left "src")
+          true
+      <*> yarg "dependency-path" []
+          (Just "Directory for dependencies (default: \"bower_components\")")
+          (Left "bower_components")
+          true
+      <*> yarg "test-path" []
+          (Just "Directory for .purs test source files (default: \"test\")")
+          (Left "test")
+          true
+      <*> yarg "test-main" []
+          (Just "Module with main function for running tests (default: \"Test.Main\")")
+          (Left "Test.Main")
+          true
+      <*> flag "t" ["test"] (Just "Run tests after a successful build")
+      <*> (not <$> flag "nocolor" [] (Just "Do not colorize output"))

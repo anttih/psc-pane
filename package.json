@@ -12,7 +12,7 @@
   "scripts": {
     "psc": "psc 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
     "psc-bundle": "psc-bundle \"output/*/*.js\" --output psc-pane.js --module PscPane.Main --main PscPane.Main",
-    "psc-pane": "npm run build && ./index.js",
+    "psc-pane": "npm run build && ./index.js -t",
     "build": "npm run psc && npm run psc-bundle",
     "prepublish": "bower install && npm run build"
   },
@@ -20,11 +20,12 @@
     "test": "test"
   },
   "dependencies": {
-    "blessed": "^0.1.81",
-    "concat-stream": "^1.5.1",
-    "minimatch": "^3.0.0",
-    "watchpack": "^0.2.9",
-    "yargs": "^4.7.0",
+    "blessed": "0.1.81",
+    "minimatch": "3.0.3",
+    "watchpack": "1.1.0",
+    "yargs": "4.7.0"
+  },
+  "devDependencies": {
     "purescript": "0.10.1"
   }
 }
