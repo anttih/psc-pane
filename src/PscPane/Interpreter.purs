@@ -42,19 +42,19 @@ appN (LoadModules a) = do
   { port } ← get
   lift $ const a <$> load port [] []
 appN (BuildProject f) = do
-  { screen, box, srcPath, libPath, testPath, test } ← get
+  { screen, box, options: { buildPath, srcPath, libPath, testPath, test } } ← get
   let srcGlob = Path.concat [srcPath, "**", "*.purs"]
       libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
       testSrcGlob = Path.concat [testPath, "**", "*.purs"]
-      args = ["--json-errors", srcGlob, libGlob]
+      args = ["--output", buildPath, "--json-errors", srcGlob, libGlob]
            <> if test then pure testSrcGlob else mempty
   res ← either _.stdErr _.stdErr <$> lift (spawn "psc" args)
   case readPscJson res of
     Nothing → throwError $ error "Could not read psc output."
     Just res' → pure (f res')
 appN (RunTests f) = do
-  { testMain } ← get
-  let modulePath = "./output/" <> jsEscape testMain
+  { options: { buildPath, testMain } } ← get
+  let modulePath = "./" <> buildPath <> "/" <> jsEscape testMain
   res ← lift $ spawn "node" ["-e", "require('" <> modulePath <> "').main();"]
   pure $ f res
 
@@ -68,10 +68,10 @@ appN (RunTests f) = do
     <<< replace (Pattern "\\") (Replacement "'")
 
 appN (ShouldRunTests f) = do
-  { test } ← get
+  { options: { test } } ← get
   pure (f test)
 appN (DrawPaneState state a) = do
-  { screen, box, cwd, colorize } ← get
+  { screen, box, cwd, options: { colorize } } ← get
   height ← liftEff rows
   liftEff (setContent box (formatState colorize cwd height state))
   liftEff (render screen)

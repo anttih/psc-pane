@@ -1,5 +1,6 @@
 module PscPane.Main where
 
+import Prelude hiding (append)
 import Control.Alt ((<|>))
 import Control.Coroutine (Consumer, runProcess, consumer, ($$))
 import Control.Monad.Aff (runAff)
@@ -27,7 +28,7 @@ import PscPane.State (State(..), Progress(InProgress, Done), PscFailure)
 import PscPane.Server (startPscIdeServer)
 import PscPane.Types (EffN, AffN)
 import PscPane.Watcher (watch)
-import Prelude hiding (append)
+import PscPane.Config (Options)
 
 foreign import minimatch ∷ String → String → Boolean
 
@@ -70,8 +71,8 @@ rebuildModule path = do
   toPaneState _ (Just res) = PscError res
   toPaneState path Nothing = ModuleOk path (InProgress "building project...")
 
-app ∷ String → String → String → String → Boolean → Boolean → EffN Unit
-app srcPath libPath testPath testMain test noColor = void do
+app ∷ Options → EffN Unit
+app options@{ srcPath, testPath, test } = void do
   cwd ← P.cwd
   let
     screen = mkScreen { smartCSR: true }
@@ -94,9 +95,7 @@ app srcPath libPath testPath testMain test noColor = void do
   runAff exit pure do
     running ← startPscIdeServer cwd $ range 4242 4252
     port ← maybe (throwError (error "Cannot start psc-ide-server")) pure running
-    let config = { screen, box, port, cwd, srcPath, libPath, testPath
-                 , testMain, test, prevPaneState: InitialBuild, colorize: not noColor
-                 }
+    let config = { screen, box, port, cwd, prevPaneState: InitialBuild, options }
     stateRef ← liftEff $ newRef config
     let
       runCmd ∷ A.Action Unit → AffN Unit
@@ -148,23 +147,29 @@ main = do
   let setup = usage "psc-pane - Auto reloading PureScript compiler\n\nUsage: psc-pane [OPTION]"
               <> defaultHelp
               <> defaultVersion
+      options = { buildPath: _, srcPath: _, libPath: _, testPath: _, testMain: _, test: _, colorize: _}
   runY setup $
-    app
-    <$> yarg "src" []
-        (Just "Path to .purs sources. Default: \"src\".")
-        (Left "src")
-        true
-    <*> yarg "lib" []
-        (Just "Path to dependency files. Default: \"bower_components\"")
-        (Left "bower_components")
-        true
-    <*> yarg "test-src" []
-        (Just "Path to test sources. Default \"test\"")
-        (Left "test")
-        true
-    <*> yarg "test-main" []
-        (Just "Module with main function for running tests. Default: \"Test.Main\"")
-        (Left "Test.Main")
-        true
-    <*> flag "t" ["test"] (Just "Run tests after a successful build.")
-    <*> flag "nocolor" [] (Just "Do not colorize output.")
+    map app $
+      options
+      <$> yarg "o" ["build-path" ]
+          (Just "Directory for psc output (default \"output\")")
+          (Left "output")
+          true
+      <*> yarg "src-path" []
+          (Just "Directory for .purs source files (default: \"src\")")
+          (Left "src")
+          true
+      <*> yarg "dependency-path" []
+          (Just "Directory for dependencies (default: \"bower_components\")")
+          (Left "bower_components")
+          true
+      <*> yarg "test-path" []
+          (Just "Directory for .purs test source files (default: \"test\")")
+          (Left "test")
+          true
+      <*> yarg "test-main" []
+          (Just "Module with main function for running tests (default: \"Test.Main\")")
+          (Left "Test.Main")
+          true
+      <*> flag "t" ["test"] (Just "Run tests after a successful build")
+      <*> (not <$> flag "nocolor" [] (Just "Do not colorize output"))
