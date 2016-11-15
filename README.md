@@ -51,6 +51,13 @@ You can change the source directory (`src` by default) with `--src-path`.
 
 For the full list of options see `--help`.
 
+### Single-module mode
+
+By default `psc-pane` does a full rebuild of your project after psc-ide
+compiles the most recently changed file successfully. You can turn this off and
+only rebuild one module at a time with psc-ide using `--module-only` (`-m`).
+
+
 ### Running tests
 
 `psc-pane` won't run any tests unless you use the `-t` (`--test`) flag. When
