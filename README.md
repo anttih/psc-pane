@@ -59,10 +59,10 @@ location of test source files is `test`, you can change it with `--test-path`.
 This path is watched for changes in addition to the src path (`--src-path`)
 when `-t` is given.
 
-By default the test suite is run by calling the `main` function from the
-module `Test.Main`. You can change the module name with `--test-main`. If the
-test suite exits with a non-zero exit code the output from the tests will be
-displayed. The output from stderr is used but when empty, stdout is used.
+By default the test suite is run by calling the `main` function from the module
+`Test.Main`. You can change the module name with `--test-main`. If the test
+suite exits with a non-zero exit code the output from stderr (or stdout if
+empty) will be displayed.
 
 ### Turning off colors
 
