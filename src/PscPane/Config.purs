@@ -12,6 +12,7 @@ type Options =
   , libPath ∷ String
   , testPath ∷ String
   , testMain ∷ String
+  , rebuild ∷ Boolean
   , test ∷ Boolean
   , colorize ∷ Boolean
   }

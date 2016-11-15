@@ -62,14 +62,16 @@ rebuildModule ∷ String → A.Action Unit
 rebuildModule path = do
   A.drawPaneState (CompilingModule path)
   firstErr ← A.rebuildModule path
-  A.drawPaneState (toPaneState path firstErr)
-  when (isNothing firstErr) buildProject
+  rebuild ← A.shouldBuildAll
+  A.drawPaneState (toPaneState path firstErr rebuild)
+  when (isNothing firstErr && rebuild) buildProject
   pure unit
 
   where
-  toPaneState ∷ FilePath → Maybe PscFailure → State
-  toPaneState _ (Just res) = PscError res
-  toPaneState path Nothing = ModuleOk path (InProgress "building project...")
+  toPaneState ∷ FilePath → Maybe PscFailure → Boolean → State
+  toPaneState _ (Just res) _ = PscError res
+  toPaneState path Nothing true = ModuleOk path (InProgress "building project...")
+  toPaneState path Nothing false = ModuleOk path Done
 
 app ∷ Options → EffN Unit
 app options@{ srcPath, testPath, test } = void do
@@ -147,7 +149,8 @@ main = do
   let setup = usage "psc-pane - Auto reloading PureScript compiler\n\nUsage: psc-pane [OPTION]"
               <> defaultHelp
               <> defaultVersion
-      options = { buildPath: _, srcPath: _, libPath: _, testPath: _, testMain: _, test: _, colorize: _}
+      options = { buildPath: _, srcPath: _, libPath: _, testPath: _, testMain: _
+                , rebuild: _, test: _, colorize: _}
   runY setup $
     map app $
       options
@@ -171,5 +174,7 @@ main = do
           (Just "Module with main function for running tests (default: \"Test.Main\")")
           (Left "Test.Main")
           true
+      <*> (not <$> flag "m" ["module-only"]
+          (Just "Single module mode. Only use psc-ide to compile one module at a time."))
       <*> flag "t" ["test"] (Just "Run tests after a successful build")
       <*> (not <$> flag "nocolor" [] (Just "Do not colorize output"))

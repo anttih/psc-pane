@@ -70,6 +70,9 @@ appN (RunTests f) = do
 appN (ShouldRunTests f) = do
   { options: { test } } ← get
   pure (f test)
+appN (ShouldBuildAll f) = do
+  { options: { rebuild }} ← get
+  pure (f rebuild)
 appN (DrawPaneState state a) = do
   { screen, box, cwd, options: { colorize } } ← get
   height ← liftEff rows

@@ -16,6 +16,7 @@ data ActionF a
   | ShowError String a
   | RunTests (Either SpawnOutput SpawnOutput → a)
   | ShouldRunTests (Boolean → a)
+  | ShouldBuildAll (Boolean → a)
   
 type Action a = Free ActionF a
 
@@ -33,6 +34,9 @@ runTests = liftF (RunTests id)
 
 shouldRunTests ∷ Action Boolean
 shouldRunTests = liftF (ShouldRunTests id)
+
+shouldBuildAll ∷ Action Boolean
+shouldBuildAll = liftF (ShouldBuildAll id)
 
 drawPaneState ∷ State → Action Unit
 drawPaneState state = liftF (DrawPaneState state unit)
