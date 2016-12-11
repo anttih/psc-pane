@@ -1,13 +1,10 @@
 module PscPane.Parser where
 
 import Prelude
-import Data.Array (head)
+import Data.Array (head, last)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.?))
 import Data.Argonaut.Parser (jsonParser)
-import Data.Foldable (fold)
-import Data.Maybe.First (First(..))
 import Data.Either (Either(..))
-import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), split, trim)
 
@@ -26,27 +23,22 @@ instance isDecodeJsonPscResult ∷ DecodeJson PscResult where
     errors ← j .? "errors"
     pure $ PscResult { warnings, errors }
 
-readPscJson ∷ String → Maybe (Maybe PscFailure)
-readPscJson err = findFirst jsonOutput lines
+readPscJson ∷ String → Either String (Maybe PscFailure)
+readPscJson err = case last lines of
+  Nothing → Left "Got no lines from psc"
+  Just json → jsonOutput json
+
   where
   lines ∷ Array String
   lines = split (Pattern "\n") $ trim err
 
-  jsonOutput ∷ String → Maybe (Maybe PscFailure)
-  jsonOutput line = eitherToMaybe do
+  jsonOutput ∷ String → Either String (Maybe PscFailure)
+  jsonOutput line = do
     json ← jsonParser line
     firstFailure <$> decodeJson json
-
-  eitherToMaybe ∷ forall e a. Either e a → Maybe a
-  eitherToMaybe (Right a) = Just a
-  eitherToMaybe _ = Nothing
 
   firstFailure ∷ PscResult → Maybe PscFailure
   firstFailure (PscResult { warnings: [], errors: [] }) = Nothing
   firstFailure (PscResult { warnings: [], errors: errors }) = Error <$> head errors
   firstFailure (PscResult { warnings: warnings, errors: [] }) = Warning <$> head warnings
   firstFailure (PscResult { warnings: _, errors: errors }) = Error <$> head errors
-
-findFirst ∷ ∀ a. (String → Maybe a) → Array String → Maybe a
-findFirst f xs = unwrap (fold (map (First <<< f) xs))
-

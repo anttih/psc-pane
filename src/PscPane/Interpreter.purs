@@ -8,7 +8,7 @@ import Control.Monad.Eff.Exception (error)
 import Control.Monad.State.Trans (StateT, lift, execStateT)
 import Control.Monad.State.Class (get, modify)
 import Data.Array (head)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe)
 import Data.Monoid (mempty)
 import Data.Either (Either(..), either)
 import Data.String (Pattern(..), Replacement(..), replace)
@@ -50,8 +50,8 @@ appN (BuildProject f) = do
            <> if test then pure testSrcGlob else mempty
   res ← either _.stdErr _.stdErr <$> lift (spawn "psc" args)
   case readPscJson res of
-    Nothing → throwError $ error "Could not read psc output."
-    Just res' → pure (f res')
+    Left err → throwError $ error $ "Could not read psc output: " <> err
+    Right res' → pure (f res')
 appN (RunTests f) = do
   { options: { buildPath, testMain } } ← get
   let modulePath = "./" <> buildPath <> "/" <> jsEscape testMain
