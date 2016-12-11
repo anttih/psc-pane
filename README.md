@@ -55,7 +55,7 @@ For the full list of options see `--help`.
 
 By default `psc-pane` does a full rebuild of your project after psc-ide
 compiles the most recently changed file successfully. You can turn this off and
-only rebuild one module at a time with psc-ide using `--module-only` (`-m`).
+only rebuild one module at a time with psc-ide using `--norebuild` (`-m`).
 
 
 ### Running tests
