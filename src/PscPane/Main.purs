@@ -174,7 +174,7 @@ main = do
           (Just "Module with main function for running tests (default: \"Test.Main\")")
           (Left "Test.Main")
           true
-      <*> (not <$> flag "m" ["module-only"]
+      <*> (not <$> flag "m" ["norebuild"]
           (Just "Single module mode. Only use psc-ide to compile one module at a time."))
       <*> flag "t" ["test"] (Just "Run tests after a successful build")
       <*> (not <$> flag "nocolor" [] (Just "Do not colorize output"))
