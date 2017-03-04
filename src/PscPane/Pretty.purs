@@ -80,9 +80,7 @@ prettyMessage height lines = joinLines (fit height lines)
   fitted lines = try ( id
                      : trimLines
                      : withoutExtraLines
-                     : withoutWikiLink
                      : withoutEmptyLines
-                     : withoutTypeInfo
                      : take height
                      : Nil
                      ) lines
@@ -105,16 +103,8 @@ prettyMessage height lines = joinLines (fit height lines)
   replace (Right regex) s lines = splitLines (R.replace regex s (joinLines lines))
   replace _ _ lines = lines
 
-  withoutWikiLink ∷ Array String → Array String
-  withoutWikiLink = trimLines <<< takeWhile wikiLink
-    where wikiLink = not <<< contains (Pattern "See https://")
-
   withoutEmptyLines ∷ Array String → Array String
   withoutEmptyLines = filter ((_ /= "") <<< trim)
-
-  withoutTypeInfo ∷ Array String → Array String
-  withoutTypeInfo  = trimLines <<< takeWhile typeInfo
-    where typeInfo = not <<< contains (Pattern "while trying to match type")
 
   -- | Try different fitting functions passing the previous result to the next
   -- | until the message fits.
