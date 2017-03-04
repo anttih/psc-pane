@@ -26,6 +26,6 @@
     "yargs": "4.7.0"
   },
   "devDependencies": {
-    "purescript": "0.10.1"
+    "purescript": "0.10.7"
   }
 }
