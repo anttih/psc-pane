@@ -2,8 +2,8 @@ module PscPane.Pretty where
 
 import Prelude
 import Data.Either (Either(Right))
-import Data.Array (length, take, takeWhile, filter)
-import Data.String (Pattern(..), joinWith, contains, split, trim)
+import Data.Array (length, take, filter)
+import Data.String (Pattern(..), joinWith, split, trim)
 import Data.String.Regex as R
 import Data.String.Regex.Flags (RegexFlags(..), global)
 import Data.Maybe (Maybe(..), maybe)
@@ -68,29 +68,31 @@ prettyPosition (Just { line, column }) =
 prettyPosition Nothing = ""
 
 prettyMessage ∷ Height → Array String → String
-prettyMessage height lines = joinLines (fit height lines)
-  where
-  -- | Either we can fit the message intelligently or we just give up and
-  -- | force the height
-  fit ∷ Height → Array String → Array String
-  fit height lines = maybe (take height lines) id (fitted lines)
+prettyMessage height lines = 
+  let
+    -- | Our fitting strategy
+    tried ∷ Maybe (Array String)
+    tried = try ( id
+                : trimLines
+                : withoutExtraLines
+                : withoutEmptyLines
+                : take height
+                : Nil
+                ) lines
+    -- | Either we can fit the message intelligently or we just give up and
+    -- | force the height
+    formatted = maybe (take height lines) id tried
 
-  -- | Our fitting strategy
-  fitted ∷ Array String → Maybe (Array String)
-  fitted lines = try ( id
-                     : trimLines
-                     : withoutExtraLines
-                     : withoutEmptyLines
-                     : take height
-                     : Nil
-                     ) lines
+  in joinLines formatted
+
+  where
 
   trimLines ∷ Array String → Array String
-  trimLines lines = replace (R.regex "^\n+|\n+$" global) "" lines
+  trimLines lines' = replace (R.regex "^\n+|\n+$" global) "" lines'
 
 
   withoutExtraLines ∷ Array String → Array String
-  withoutExtraLines lines = replace (R.regex "\n{2}" flags) "\n" lines
+  withoutExtraLines lines' = replace (R.regex "\n{2}" flags) "\n" lines'
     where flags = RegexFlags
                     { global: true
                     , ignoreCase: false
@@ -100,8 +102,8 @@ prettyMessage height lines = joinLines (fit height lines)
                     }
 
   replace ∷ Either String R.Regex → String → Array String → Array String
-  replace (Right regex) s lines = splitLines (R.replace regex s (joinLines lines))
-  replace _ _ lines = lines
+  replace (Right regex) s lines' = splitLines (R.replace regex s (joinLines lines'))
+  replace _ _ lines' = lines'
 
   withoutEmptyLines ∷ Array String → Array String
   withoutEmptyLines = filter ((_ /= "") <<< trim)
@@ -110,8 +112,8 @@ prettyMessage height lines = joinLines (fit height lines)
   -- | until the message fits.
   try ∷ List (Array String → Array String) → Array String → Maybe (Array String)
   try Nil _ = Nothing
-  try (Cons f rest) lines =
-    let res = f lines
+  try (Cons f rest) lines' =
+    let res = f lines'
     in if (length res) <= height
       then Just res
       else try rest res
