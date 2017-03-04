@@ -12,7 +12,7 @@
   ],
   "dependencies": {
     "purescript-console": "^2.0.0",
-    "purescript-yargs": "^1.0.0",
+    "purescript-yargs": "^2.0.0",
     "purescript-aff": "^2.0.0",
     "purescript-node-fs": "^3.0.0",
     "purescript-node-process": "^3.0.0",
