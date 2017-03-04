@@ -141,8 +141,11 @@ app options@{ srcPath, testPath, test } = void do
       quitP ∷ AffN Unit
       quitP = runProcess (onQuit screen ["q", "C-c"] $$ handleQuit)
 
-    sequential
-      $ parallel (runCmd initialBuild) <|> parallel resizeP <|> parallel watchP <|> parallel quitP
+    -- Wait for the initial build to finish first
+    runCmd initialBuild
+
+    -- Run event listeners in parallel. They don't ever finish.
+    sequential $ parallel resizeP <|> parallel watchP <|> parallel quitP
 
 main ∷ EffN Unit
 main = do
