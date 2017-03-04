@@ -14,7 +14,6 @@ import Data.Either (Either(..))
 import Data.Foldable (any)
 import Data.List (range)
 import Data.Maybe (Maybe(..), maybe, isNothing)
-import Node.Path (FilePath)
 import Node.Process as P
 import Node.Yargs.Applicative (flag, yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
@@ -63,15 +62,15 @@ rebuildModule path = do
   A.drawPaneState (CompilingModule path)
   firstErr ← A.rebuildModule path
   rebuild ← A.shouldBuildAll
-  A.drawPaneState (toPaneState path firstErr rebuild)
+  A.drawPaneState (toPaneState firstErr rebuild)
   when (isNothing firstErr && rebuild) buildProject
   pure unit
 
   where
-  toPaneState ∷ FilePath → Maybe PscFailure → Boolean → State
-  toPaneState _ (Just res) _ = PscError res
-  toPaneState path Nothing true = ModuleOk path (InProgress "building project...")
-  toPaneState path Nothing false = ModuleOk path Done
+  toPaneState ∷ Maybe PscFailure → Boolean → State
+  toPaneState (Just res) _ = PscError res
+  toPaneState Nothing true = ModuleOk path (InProgress "building project...")
+  toPaneState Nothing false = ModuleOk path Done
 
 app ∷ Options → EffN Unit
 app options@{ srcPath, testPath, test } = void do
