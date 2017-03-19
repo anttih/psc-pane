@@ -3,7 +3,7 @@ module PscPane.Main where
 import Prelude hiding (append)
 import Control.Alt ((<|>))
 import Control.Coroutine (Consumer, runProcess, consumer, ($$))
-import Control.Monad.Aff (runAff)
+import Control.Monad.Aff (runAff, attempt)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console as Console
 import Control.Monad.Eff.Exception (Error, error, message)
@@ -133,7 +133,7 @@ app options@{ srcPath, testPath, test } = void do
 
       handleQuit ∷ Consumer Unit AffN Unit
       handleQuit = consumer \_ → do
-        stopServer port
+        attempt $ stopServer port
         liftEff $ P.exit 0
         pure Nothing
 
