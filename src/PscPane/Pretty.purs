@@ -76,12 +76,11 @@ prettyMessage height lines =
                 : trimLines
                 : withoutExtraLines
                 : withoutEmptyLines
-                : take height
                 : Nil
                 ) lines
     -- | Either we can fit the message intelligently or we just give up and
     -- | force the height
-    formatted = maybe (take height lines) id tried
+    formatted = maybe lines id tried
 
   in joinLines formatted
 

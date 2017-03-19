@@ -76,8 +76,15 @@ app ∷ Options → EffN Unit
 app options@{ srcPath, testPath, test } = void do
   cwd ← P.cwd
   let
-    screen = mkScreen { smartCSR: true }
-    box = mkBox { width: "100%", height: "100%", content: "" }
+    screen = mkScreen { smartCSR: true, debug: false }
+    box = mkBox { width: "100%"
+                , height: "100%"
+                , content: ""
+                , scrollable: true
+                , scrollbar: true
+                , keys: true
+                , alwaysScroll: true
+                , vi: true }
 
     exit ∷ Error → EffN Unit
     exit err = do

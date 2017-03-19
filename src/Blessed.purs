@@ -53,6 +53,11 @@ type BoxOptions =
   { width ∷ String
   , height ∷ String
   , content ∷ String
+  , scrollable ∷ Boolean
+  , scrollbar ∷ Boolean
+  , alwaysScroll ∷ Boolean
+  , keys ∷ Boolean
+  , vi ∷ Boolean
   }
 
 foreign import mkBox ∷ BoxOptions → Box
