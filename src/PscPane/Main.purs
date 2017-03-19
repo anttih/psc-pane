@@ -20,7 +20,7 @@ import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde.Server (stopServer)
 
 import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen,
-               destroy, debug)
+               destroy)
 import PscPane.DSL as A
 import PscPane.Interpreter (run)
 import PscPane.State (State(..), Progress(InProgress, Done), PscFailure)
