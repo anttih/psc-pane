@@ -15,6 +15,14 @@ exports.render = function (screen) {
   };
 };
 
+exports.debug = function (screen) {
+  return function (msg) {
+    return function () {
+      screen.debug(msg);
+    }
+  };
+};
+
 exports.on = function (screen) {
   return function (event) {
     return function (cb) {

@@ -16,6 +16,7 @@ foreign import data Box ∷ *
 
 type ScreenOptions =
   { smartCSR ∷ Boolean
+  , debug ∷ Boolean
   }
 
 foreign import mkScreen ∷ ScreenOptions → Screen
@@ -24,6 +25,8 @@ foreign import mkScreen ∷ ScreenOptions → Screen
 foreign import append ∷ ∀ eff. Screen → Box → Eff (blessed ∷ BLESSED | eff) Unit
 
 foreign import render ∷ ∀ eff. Screen → Eff (blessed ∷ BLESSED | eff) Unit
+
+foreign import debug ∷ ∀ eff. Screen → String → Eff (blessed ∷ BLESSED | eff) Unit
 
 onResize ∷ ∀ eff. Screen → Producer Unit (Aff (avar ∷ AVAR, blessed ∷ BLESSED | eff)) Unit
 onResize screen = produce \emit → on screen "resize" (emit <<< Left)
