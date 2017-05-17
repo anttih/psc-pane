@@ -17,7 +17,7 @@ type SpawnOutput = { stdOut ∷ String, stdErr ∷ String }
 spawn ∷ ∀ eff
   . String
   → Array String
-  → Aff (ref ∷ REF, err ∷ EXCEPTION, cp ∷ CHILD_PROCESS | eff) (Either SpawnOutput SpawnOutput)
+  → Aff (ref ∷ REF, exception ∷ EXCEPTION, cp ∷ CHILD_PROCESS | eff) (Either SpawnOutput SpawnOutput)
 spawn exe args = do
   child ← liftEff $ CP.spawn exe args defaultSpawnOptions
   errRef ← liftEff $ newRef ""

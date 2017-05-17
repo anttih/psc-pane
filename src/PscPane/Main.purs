@@ -133,8 +133,8 @@ app options@{ srcPath, testPath, test } = void do
 
       handleQuit ∷ Consumer Unit AffN Unit
       handleQuit = consumer \_ → do
-        attempt $ stopServer port
-        liftEff $ P.exit 0
+        _ ← attempt $ stopServer port
+        _ ← liftEff $ P.exit 0
         pure Nothing
 
       resizeP ∷ AffN Unit

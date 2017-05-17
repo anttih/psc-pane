@@ -5,14 +5,14 @@ import Control.Coroutine (Producer)
 import Control.Coroutine.Aff (produce)
 import Control.Monad.Aff (Aff)
 import Control.Monad.Aff.AVar (AVAR)
-import Control.Monad.Eff (Eff)
+import Control.Monad.Eff (kind Effect, Eff)
 import Data.Either (Either(Left))
 
-foreign import data BLESSED ∷ !
+foreign import data BLESSED ∷ Effect
 
-foreign import data Screen ∷ *
+foreign import data Screen ∷ Type
 
-foreign import data Box ∷ *
+foreign import data Box ∷ Type
 
 type ScreenOptions =
   { smartCSR ∷ Boolean

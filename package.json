@@ -10,10 +10,10 @@
     "psc-pane": "index.js"
   },
   "scripts": {
-    "psc": "psc 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
-    "psc-bundle": "psc-bundle \"output/*/*.js\" --output psc-pane.js --module PscPane.Main --main PscPane.Main",
+    "compile": "purs compile 'src/**/*.purs' 'bower_components/purescript-*/src/**/*.purs'",
+    "bundle": "purs bundle \"output/*/*.js\" --output psc-pane.js --module PscPane.Main --main PscPane.Main",
     "psc-pane": "npm run build && ./index.js -t",
-    "build": "npm run psc && npm run psc-bundle",
+    "build": "npm run compile && npm run bundle",
     "prepublish": "bower install && npm run build"
   },
   "directories": {
@@ -26,6 +26,6 @@
     "yargs": "4.7.0"
   },
   "devDependencies": {
-    "purescript": "0.10.7"
+    "purescript": "0.11.4"
   }
 }

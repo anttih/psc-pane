@@ -12,23 +12,23 @@
     "output"
   ],
   "dependencies": {
-    "purescript-console": "^2.0.0",
-    "purescript-yargs": "^2.0.0",
-    "purescript-aff": "^2.0.0",
-    "purescript-node-fs": "^3.0.0",
-    "purescript-node-process": "^3.0.0",
-    "purescript-node-streams": "^2.0.0",
-    "purescript-lists": "^3.0.0",
-    "purescript-ansi": "^2.0.0",
-    "purescript-node-path": "^1.0.0",
-    "purescript-node-child-process": "^3.0.0",
-    "purescript-psc-ide": "^7.0.0",
-    "purescript-argonaut-codecs": "^2.0.0",
-    "purescript-free": "^3.0.0",
-    "purescript-aff-coroutines": "^4.0.0"
+    "purescript-console": "^3.0.0",
+    "purescript-yargs": "^3.0.0",
+    "purescript-aff": "^3.0.0",
+    "purescript-node-fs": "^4.0.0",
+    "purescript-node-process": "^4.0.0",
+    "purescript-node-streams": "^3.0.0",
+    "purescript-lists": "^4.0.0",
+    "purescript-ansi": "^3.0.0",
+    "purescript-node-path": "^2.0.0",
+    "purescript-node-child-process": "^4.0.0",
+    "purescript-psc-ide": "^8.0.0",
+    "purescript-argonaut-codecs": "^3.0.0",
+    "purescript-free": "^4.0.0",
+    "purescript-aff-coroutines": "^5.0.0"
   },
   "devDependencies": {
-    "purescript-psci-support": "^2.0.0",
-    "purescript-spec": "^0.10.0"
+    "purescript-psci-support": "^3.0.0",
+    "purescript-spec": "^1.0.0"
   }
 }

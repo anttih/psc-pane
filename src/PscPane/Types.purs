@@ -14,7 +14,7 @@ import PscIde (NET)
 import Blessed (BLESSED)
 
 type EffN = Eff ( fs ∷ FS
-                , err ∷ EXCEPTION
+                , exception ∷ EXCEPTION
                 , console ∷ CONSOLE
                 , buffer ∷ BUFFER
                 , process ∷ PROCESS
@@ -26,7 +26,7 @@ type EffN = Eff ( fs ∷ FS
                 )
 
 type AffN = Aff ( fs ∷ FS
-                , err ∷ EXCEPTION
+                , exception ∷ EXCEPTION
                 , console ∷ CONSOLE
                 , buffer ∷ BUFFER
                 , process ∷ PROCESS
