@@ -164,7 +164,7 @@ main = do
     map app $
       options
       <$> yarg "o" ["build-path" ]
-          (Just "Directory for psc output (default \"output\")")
+          (Just "Directory for `purs compile` output (default \"output\")")
           (Left "output")
           true
       <*> yarg "src-path" []

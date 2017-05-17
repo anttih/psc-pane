@@ -46,9 +46,9 @@ appN (BuildProject f) = do
   let srcGlob = Path.concat [srcPath, "**", "*.purs"]
       libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
       testSrcGlob = Path.concat [testPath, "**", "*.purs"]
-      args = ["--output", buildPath, "--json-errors", srcGlob, libGlob]
+      args = ["compile", "--output", buildPath, "--json-errors", srcGlob, libGlob]
            <> if test then pure testSrcGlob else mempty
-  res ← either _.stdErr _.stdErr <$> lift (spawn "psc" args)
+  res ← either _.stdErr _.stdErr <$> lift (spawn "purs" args)
   case readPscJson res of
     Left err → throwError $ error $ "Could not read psc output: " <> err
     Right res' → pure (f res')
