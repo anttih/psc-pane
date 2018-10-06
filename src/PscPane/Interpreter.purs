@@ -11,6 +11,8 @@ import Data.Array (head)
 import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), Replacement(..), replace)
+import Effect (Effect)
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Node.Path as Path
@@ -23,10 +25,8 @@ import PscPane.Parser (readPscJson)
 import PscPane.Pretty (formatState)
 import PscPane.Spawn (spawn)
 import PscPane.State (PscFailure(..))
-import PscPane.Types (EffN, AffN)
 
-
-appN ∷ ActionF ~> StateT Config AffN
+appN ∷ ActionF ~> StateT Config Aff
 appN (RebuildModule path f) = do
   { port } ← get
   res ← lift $ rebuild port path Nothing
@@ -45,9 +45,9 @@ appN (BuildProject f) = do
   let srcGlob = Path.concat [srcPath, "**", "*.purs"]
       libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
       testSrcGlob = Path.concat [testPath, "**", "*.purs"]
-      args = ["compile", "--output", buildPath, "--json-errors", srcGlob, libGlob]
+      args = ["build", "--", "--output", buildPath, "--json-errors"]
            <> if test then pure testSrcGlob else mempty
-  res ← either _.stdErr _.stdErr <$> lift (spawn "purs" args)
+  res ← either _.stdErr _.stdErr <$> lift (spawn "psc-package" args)
   case readPscJson res of
     Left err → throwError $ error $ "Could not read psc output: " <> err
     Right res' → pure (f res')
@@ -81,7 +81,7 @@ appN (DrawPaneState state a) = do
   pure a
 appN (ShowError err a) = lift $ const a <$> display err
 
-run ∷ ∀ a. Config → Action a → AffN Config
+run ∷ ∀ a. Config → Action a → Aff Config
 run state program = execStateT (foldFree appN program) state
 
-foreign import rows ∷ EffN Int
+foreign import rows ∷ Effect Int
