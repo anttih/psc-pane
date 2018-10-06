@@ -1,11 +1,7 @@
 module Test.Main where
 
 import Prelude
-import Effect.Aff.AVar (AVAR)
-import Control.Monad.Eff.Timer (TIMER)
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE)
-import Node.Process as P
+import Effect (Effect)
 
 import Test.Spec (describe, it)
 import Test.Spec.Runner (run)
@@ -14,7 +10,7 @@ import Test.Spec.Reporter.Console (consoleReporter)
 
 import PscPane.Pretty (formatTestOutput)
 
-main ∷ ∀ eff. Eff (avar ∷ AVAR, timer ∷ TIMER, process ∷ P.PROCESS, console ∷ CONSOLE | eff) Unit
+main ∷ Effect Unit
 main = run [consoleReporter] do
   describe "Formatting test results" do
     it "shows the last n lines that fit the window" do
