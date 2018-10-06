@@ -1,21 +1,21 @@
 module PscPane.Color where
 
 import Prelude
-import Ansi.Codes ( EscapeCode(Graphics)
-                  , GraphicsParam(PForeground, Reset)
-                  , Color(Green, Yellow, Red)
-                  , escapeCodeToString)
 
-withColor ∷ Array GraphicsParam → String → String
+import Ansi.Codes (EscapeCode(Graphics), GraphicsParam(PForeground, Reset), Color(Green, Yellow, Red), escapeCodeToString)
+import Data.List.NonEmpty (singleton)
+import Data.List.Types (NonEmptyList)
+
+withColor ∷ NonEmptyList GraphicsParam → String → String
 withColor params s =
-  escapeCodeToString (Graphics params) <> s <> escapeCodeToString (Graphics [Reset])
+  escapeCodeToString (Graphics params) <> s <> escapeCodeToString (Graphics (singleton Reset))
 
 green ∷ String → String
-green = withColor [PForeground Green]
+green = withColor (singleton (PForeground Green))
 
 yellow ∷ String → String
-yellow = withColor [PForeground Yellow]
+yellow = withColor (singleton (PForeground Yellow))
 
 red ∷ String → String
-red = withColor [PForeground Red]
+red = withColor (singleton (PForeground Red))
 

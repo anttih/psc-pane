@@ -1,7 +1,7 @@
 module PscPane.Output where
 
 import Prelude
-import Control.Monad.Eff.Class (liftEff)
+import Effect.Class (liftEffect)
 import PscPane.Types (AffN, EffN)
 
 clear ∷ EffN Unit
@@ -11,6 +11,6 @@ clear = do
   pure unit
 
 display ∷ String → AffN Unit
-display content = liftEff clear *> liftEff (write content)
+display content = liftEffect clear *> liftEffect (write content)
 
 foreign import write ∷ String → EffN Unit

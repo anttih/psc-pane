@@ -2,13 +2,9 @@ module Blessed where
 
 import Prelude
 import Control.Coroutine (Producer)
-import Control.Coroutine.Aff (produce)
-import Control.Monad.Aff (Aff)
-import Control.Monad.Aff.AVar (AVAR)
-import Control.Monad.Eff (kind Effect, Eff)
-import Data.Either (Either(Left))
-
-foreign import data BLESSED ∷ Effect
+import Control.Coroutine.Aff (emit, produce)
+import Effect (Effect)
+import Effect.Aff (Aff)
 
 foreign import data Screen ∷ Type
 
@@ -22,32 +18,29 @@ type ScreenOptions =
 foreign import mkScreen ∷ ScreenOptions → Screen
 
 -- Append a box to a screen
-foreign import append ∷ ∀ eff. Screen → Box → Eff (blessed ∷ BLESSED | eff) Unit
+foreign import append ∷ Screen → Box → Effect Unit
 
-foreign import render ∷ ∀ eff. Screen → Eff (blessed ∷ BLESSED | eff) Unit
+foreign import render ∷ Screen → Effect Unit
 
-foreign import debug ∷ ∀ eff. Screen → String → Eff (blessed ∷ BLESSED | eff) Unit
+foreign import debug ∷ Screen → String → Effect Unit
 
-onResize ∷ ∀ eff. Screen → Producer Unit (Aff (avar ∷ AVAR, blessed ∷ BLESSED | eff)) Unit
-onResize screen = produce \emit → on screen "resize" (emit <<< Left)
+onResize ∷ Screen → Producer Unit Aff Unit
+onResize screen = produce \emitter → on screen "resize" (emit emitter)
 
-onQuit
-  ∷ ∀ eff. Screen
-  → Array String
-  → Producer Unit (Aff (avar ∷ AVAR, blessed ∷ BLESSED | eff)) Unit
-onQuit screen keys = produce \emit → key screen keys (emit <<< Left)
+onQuit ∷ Screen → Array String → Producer Unit Aff Unit
+onQuit screen keys = produce \emitter → key screen keys (emit emitter)
 
 foreign import on
-  ∷ ∀ eff. Screen
+  ∷ Screen
   → String
-  → (Unit → Eff (blessed ∷ BLESSED | eff) Unit)
-  → Eff (blessed ∷ BLESSED | eff) Unit
+  → (Unit → Effect Unit)
+  → Effect Unit
 
 foreign import key
-  ∷ ∀ eff. Screen
+  ∷ Screen
   → Array String
-  → (Unit → Eff (blessed ∷ BLESSED | eff) Unit)
-  → Eff (blessed ∷ BLESSED | eff) Unit
+  → (Unit → Effect Unit)
+  → Effect Unit
 
 type BoxOptions =
   { width ∷ String
@@ -62,6 +55,6 @@ type BoxOptions =
 
 foreign import mkBox ∷ BoxOptions → Box
 
-foreign import setContent ∷ ∀ eff. Box → String → Eff (blessed ∷ BLESSED | eff) Unit
+foreign import setContent ∷ Box → String → Effect Unit
 
-foreign import destroy ∷ ∀ eff. Screen → Eff (blessed ∷ BLESSED | eff) Unit
+foreign import destroy ∷ Screen → Effect Unit

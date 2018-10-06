@@ -5,3 +5,5 @@
 /.psci*
 /psc-pane.js
 /npm-debug.log
+/.psc-ide-port
+/.psc-package

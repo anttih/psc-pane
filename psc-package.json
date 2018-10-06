@@ -1,0 +1,23 @@
+{
+  "name": "psc-pane",
+  "set": "master",
+  "source": "https://github.com/anttih/package-sets.git",
+  "depends": [
+    "prelude",
+    "exceptions",
+    "free",
+    "aff-coroutines",
+    "coroutines",
+    "yargs",
+    "psc-ide",
+    "node-child-process",
+    "node-path",
+    "ansi",
+    "lists",
+    "node-streams",
+    "node-process",
+    "node-fs",
+    "aff",
+    "console"
+  ]
+}

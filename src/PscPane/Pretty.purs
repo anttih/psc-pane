@@ -1,19 +1,19 @@
 module PscPane.Pretty where
 
 import Prelude
-import Data.Either (Either(Right))
+
 import Data.Array (length, take, filter)
+import Data.Either (Either(Right))
+import Data.List (List(..), (:))
+import Data.Maybe (Maybe(..), maybe)
 import Data.String (Pattern(..), joinWith, split, trim)
 import Data.String.Regex as R
 import Data.String.Regex.Flags (RegexFlags(..), global)
-import Data.Maybe (Maybe(..), maybe)
-import Data.List (List(..), (:))
 import Node.Path (FilePath, relative)
-import PscIde.Command (RebuildError(..))
-
+import PscIde.Command (RebuildError(..), RangePosition)
 import PscPane.Color (green, yellow, red)
-import PscPane.State (State(..), Progress(InProgress, Done), PscFailure(Warning, Error))
 import PscPane.Spawn (SpawnOutput)
+import PscPane.State (State(..), Progress(InProgress, Done), PscFailure(Warning, Error))
 
 type Height = Int
 
@@ -39,15 +39,15 @@ pretty colorize cwd h (Error err) = prettyError' (red' colorize "Error") cwd h e
 
 yellow' ∷ Boolean → String → String
 yellow' true = yellow
-yellow' fale = id
+yellow' fale = identity
 
 green' ∷ Boolean → String → String
 green' true = green
-green' fale = id
+green' fale = identity
 
 red' ∷ Boolean → String → String
 red' true = red
-red' fale = id
+red' fale = identity
 
 prettyError' ∷ String → FilePath → Height → RebuildError → String
 prettyError' t cwd h (RebuildError err@{ position }) =
@@ -62,17 +62,17 @@ filenameOrModule cwd { filename: Just file } = relative cwd file
 filenameOrModule _ { moduleName: Just moduleName } = moduleName
 filenameOrModule _ _ = ""
 
-prettyPosition ∷ Maybe { line ∷ Int, column ∷ Int } → String
-prettyPosition (Just { line, column }) =
-  " line " <> (show line) <> ", column " <> (show column)
+prettyPosition ∷ Maybe RangePosition → String
+prettyPosition (Just { startLine, startColumn }) =
+  " line " <> (show startLine) <> ", column " <> (show startColumn)
 prettyPosition Nothing = ""
 
 prettyMessage ∷ Height → Array String → String
-prettyMessage height lines = 
+prettyMessage height lines =
   let
     -- | Our fitting strategy
     tried ∷ Maybe (Array String)
-    tried = try ( id
+    tried = try ( identity
                 : trimLines
                 : withoutExtraLines
                 : withoutEmptyLines
@@ -80,7 +80,7 @@ prettyMessage height lines =
                 ) lines
     -- | Either we can fit the message intelligently or we just give up and
     -- | force the height
-    formatted = maybe lines id tried
+    formatted = maybe lines identity tried
 
   in joinLines formatted
 

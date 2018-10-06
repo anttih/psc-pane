@@ -1,7 +1,7 @@
 module Test.Main where
 
 import Prelude
-import Control.Monad.Aff.AVar (AVAR)
+import Effect.Aff.AVar (AVAR)
 import Control.Monad.Eff.Timer (TIMER)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)

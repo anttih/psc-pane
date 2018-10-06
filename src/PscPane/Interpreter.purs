@@ -1,36 +1,35 @@
 module PscPane.Interpreter where
 
 import Prelude
-import Control.Monad.Free (foldFree)
+
+import Blessed (render, setContent)
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Exception (error)
-import Control.Monad.State.Trans (StateT, lift, execStateT)
+import Control.Monad.Free (foldFree)
 import Control.Monad.State.Class (get, modify)
+import Control.Monad.State.Trans (StateT, lift, execStateT)
 import Data.Array (head)
-import Data.Maybe (Maybe)
-import Data.Monoid (mempty)
 import Data.Either (Either(..), either)
+import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), Replacement(..), replace)
+import Effect.Class (liftEffect)
+import Effect.Exception (error)
 import Node.Path as Path
 import PscIde (load, rebuild)
 import PscIde.Command (RebuildResult(..))
-
-import Blessed (render, setContent)
 import PscPane.Config (Config)
-import PscPane.Types (EffN, AffN)
+import PscPane.DSL (ActionF(..), Action)
+import PscPane.Output (display)
 import PscPane.Parser (readPscJson)
 import PscPane.Pretty (formatState)
-import PscPane.Output (display)
-import PscPane.DSL (ActionF(..), Action)
-import PscPane.State (PscFailure(..))
 import PscPane.Spawn (spawn)
+import PscPane.State (PscFailure(..))
+import PscPane.Types (EffN, AffN)
 
 
 appN ∷ ActionF ~> StateT Config AffN
 appN (RebuildModule path f) = do
   { port } ← get
-  res ← lift $ rebuild port path
+  res ← lift $ rebuild port path Nothing
   either (throwError <<< error) (pure <<< f <<< takeOne) res
 
   where
@@ -60,7 +59,7 @@ appN (RunTests f) = do
 
   where
   -- | This is from bodil/pulp
-  -- | 
+  -- |
   -- | Escape a string for insertion into a JS string literal.
   jsEscape :: String -> String
   jsEscape =
@@ -75,10 +74,10 @@ appN (ShouldBuildAll f) = do
   pure (f rebuild)
 appN (DrawPaneState state a) = do
   { screen, box, cwd, options: { colorize } } ← get
-  height ← liftEff rows
-  liftEff (setContent box (formatState colorize cwd height state))
-  liftEff (render screen)
-  modify (_ { prevPaneState = state })
+  height ← liftEffect rows
+  liftEffect (setContent box (formatState colorize cwd height state))
+  liftEffect (render screen)
+  void $ modify (_ { prevPaneState = state })
   pure a
 appN (ShowError err a) = lift $ const a <$> display err
 

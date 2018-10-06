@@ -17,26 +17,26 @@ data ActionF a
   | RunTests (Either SpawnOutput SpawnOutput → a)
   | ShouldRunTests (Boolean → a)
   | ShouldBuildAll (Boolean → a)
-  
+
 type Action a = Free ActionF a
 
 rebuildModule ∷ String → Action (Maybe PscFailure)
-rebuildModule path = liftF (RebuildModule path id)
+rebuildModule path = liftF (RebuildModule path identity)
 
 loadModules ∷ Action Unit
 loadModules = liftF (LoadModules unit)
 
 buildProject ∷ Action (Maybe PscFailure)
-buildProject = liftF (BuildProject id)
+buildProject = liftF (BuildProject identity)
 
 runTests ∷ Action (Either SpawnOutput SpawnOutput)
-runTests = liftF (RunTests id)
+runTests = liftF (RunTests identity)
 
 shouldRunTests ∷ Action Boolean
-shouldRunTests = liftF (ShouldRunTests id)
+shouldRunTests = liftF (ShouldRunTests identity)
 
 shouldBuildAll ∷ Action Boolean
-shouldBuildAll = liftF (ShouldBuildAll id)
+shouldBuildAll = liftF (ShouldBuildAll identity)
 
 drawPaneState ∷ State → Action Unit
 drawPaneState state = liftF (DrawPaneState state unit)

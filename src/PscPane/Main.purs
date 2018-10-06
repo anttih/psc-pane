@@ -1,33 +1,33 @@
 module PscPane.Main where
 
 import Prelude hiding (append)
+
+import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen, destroy)
 import Control.Alt ((<|>))
 import Control.Coroutine (Consumer, runProcess, consumer, ($$))
-import Control.Monad.Aff (runAff, attempt)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Console as Console
-import Control.Monad.Eff.Exception (Error, error, message)
-import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
 import Control.Monad.Error.Class (throwError, catchError)
 import Control.Parallel.Class (sequential, parallel)
 import Data.Either (Either(..))
 import Data.Foldable (any)
 import Data.List (range)
 import Data.Maybe (Maybe(..), maybe, isNothing)
+import Effect (Effect)
+import Effect.Aff (runAff, attempt)
+import Effect.Class (liftEffect)
+import Effect.Console as Console
+import Effect.Exception (Error, error, message)
+import Effect.Ref as Ref
 import Node.Process as P
 import Node.Yargs.Applicative (flag, yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscIde.Server (stopServer)
-
-import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen,
-               destroy)
+import PscPane.Config (Options)
 import PscPane.DSL as A
 import PscPane.Interpreter (run)
-import PscPane.State (State(..), Progress(InProgress, Done), PscFailure)
 import PscPane.Server (startPscIdeServer)
+import PscPane.State (State(..), Progress(InProgress, Done), PscFailure)
 import PscPane.Types (EffN, AffN)
 import PscPane.Watcher (watch)
-import PscPane.Config (Options)
 
 foreign import minimatch ∷ String → String → Boolean
 
@@ -47,9 +47,9 @@ buildProject = do
           case testResult of
             Left out → A.drawPaneState (TestFailure out)
             Right _ → A.drawPaneState TestSuccess
-        else 
+        else
           A.drawPaneState (BuildSuccess Done)
-        
+
   pure unit
 
 initialBuild ∷ A.Action Unit
@@ -86,11 +86,17 @@ app options@{ srcPath, testPath, test } = void do
                 , alwaysScroll: true
                 , vi: true }
 
-    exit ∷ Error → EffN Unit
-    exit err = do
-      destroy screen
-      Console.error $ "Error: " <> message err
-      P.exit (-1)
+    handleAff :: Either Error Unit -> Effect Unit
+    handleAff = case _ of
+      Left err -> exit err
+      Right _ -> pure unit
+
+      where
+      exit ∷ Error → EffN Unit
+      exit err = do
+        destroy screen
+        Console.error $ "Error: " <> message err
+        P.exit (-1)
 
     showError ∷ Error → EffN Unit
     showError err =
@@ -100,20 +106,20 @@ app options@{ srcPath, testPath, test } = void do
   append screen box
   render screen
 
-  runAff exit pure do
+  runAff handleAff do
     running ← startPscIdeServer cwd $ range 4242 4252
     port ← maybe (throwError (error "Cannot start psc-ide-server")) pure running
     let config = { screen, box, port, cwd, prevPaneState: InitialBuild, options }
-    stateRef ← liftEff $ newRef config
+    stateRef ← liftEffect $ Ref.new config
     let
       runCmd ∷ A.Action Unit → AffN Unit
       runCmd program =
         let
           program' = do
-            state ← liftEff $ readRef stateRef
+            state ← liftEffect $ Ref.read stateRef
             newState ← run state program
-            liftEff $ writeRef stateRef newState
-        in catchError program' (liftEff <<< showError)
+            liftEffect $ Ref.write newState stateRef
+        in catchError program' (liftEffect <<< showError)
 
       fileListener ∷ Consumer String AffN Unit
       fileListener = consumer \path → do
@@ -127,14 +133,14 @@ app options@{ srcPath, testPath, test } = void do
 
       handleResize ∷ Consumer Unit AffN Unit
       handleResize = consumer \_ → do
-        { prevPaneState } ← liftEff $ readRef stateRef
+        { prevPaneState } ← liftEffect $ Ref.read stateRef
         runCmd (A.drawPaneState prevPaneState)
         pure Nothing
 
       handleQuit ∷ Consumer Unit AffN Unit
       handleQuit = consumer \_ → do
         _ ← attempt $ stopServer port
-        _ ← liftEff $ P.exit 0
+        _ ← liftEffect $ P.exit 0
         pure Nothing
 
       resizeP ∷ AffN Unit
