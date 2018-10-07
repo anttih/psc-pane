@@ -3,16 +3,18 @@ module PscPane.Main where
 import Prelude hiding (append)
 
 import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen, destroy)
-import Control.Alt ((<|>))
-import Control.Coroutine (Consumer, runProcess, consumer, ($$))
+import Control.Coroutine (Consumer, Producer, consumer, runProcess, transform, ($$), ($~))
+import Control.Coroutine.Aff (close, emit, produceAff)
 import Control.Monad.Error.Class (throwError, catchError)
-import Control.Parallel.Class (sequential, parallel)
+import Control.Monad.Rec.Class (forever)
+import Control.Monad.Trans.Class (lift)
 import Data.Either (Either(..))
 import Data.Foldable (any)
 import Data.List (range)
 import Data.Maybe (Maybe(..), maybe, isNothing)
 import Effect (Effect)
-import Effect.Aff (Aff, attempt, runAff)
+import Effect.Aff (Aff, attempt, forkAff, parallel, runAff, sequential)
+import Effect.Aff.AVar as AV
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (Error, error, message)
@@ -29,6 +31,8 @@ import PscPane.State (State(..), Progress(InProgress, Done), PscFailure)
 import PscPane.Watcher (watch)
 
 foreign import minimatch ∷ String → String → Boolean
+
+data Query = Resize | Quit | FileChange String
 
 buildProject ∷ A.Action Unit
 buildProject = do
@@ -111,6 +115,8 @@ app options@{ srcPath, testPath, test } = void do
     let config = { screen, box, port, cwd, prevPaneState: InitialBuild, options }
     stateRef ← liftEffect $ Ref.new config
     let
+      watchDirs = if test then [srcPath, testPath] else [srcPath]
+
       runCmd ∷ A.Action Unit → Aff Unit
       runCmd program =
         let
@@ -120,43 +126,57 @@ app options@{ srcPath, testPath, test } = void do
             liftEffect $ Ref.write newState stateRef
         in catchError program' (liftEffect <<< showError)
 
-      fileListener ∷ Consumer String Aff Unit
-      fileListener = consumer \path → do
-        when (any (minimatch path) ["**/*.purs"]) $ runCmd (rebuildModule path)
+      allConsumer :: Consumer Query Aff Unit
+      allConsumer = consumer case _ of
+        Quit -> do
+          _ ← attempt $ stopServer port
+          _ ← liftEffect $ P.exit 0
+          pure (Just unit)
+        Resize -> do
+          { prevPaneState } ← liftEffect $ Ref.read stateRef
+          runCmd (A.drawPaneState prevPaneState)
+          pure Nothing
+        FileChange path -> do
+          when (any (minimatch path) ["**/*.purs"]) $ runCmd (rebuildModule path)
+          -- Changing a .js file triggers a full build for now. Should we just
+          -- build and load the purs file?
+          when (any (minimatch path) ["**/*.js"]) $ runCmd buildProject
+          pure Nothing
 
-        -- Changing a .js file triggers a full build for now. Should we just
-        -- build and load the purs file?
-        when (any (minimatch path) ["**/*.js"]) $ runCmd buildProject
-
-        pure Nothing
-
-      handleResize ∷ Consumer Unit Aff Unit
-      handleResize = consumer \_ → do
-        { prevPaneState } ← liftEffect $ Ref.read stateRef
-        runCmd (A.drawPaneState prevPaneState)
-        pure Nothing
-
-      handleQuit ∷ Consumer Unit Aff Unit
-      handleQuit = consumer \_ → do
-        _ ← attempt $ stopServer port
-        _ ← liftEffect $ P.exit 0
-        pure Nothing
-
-      resizeP ∷ Aff Unit
-      resizeP = runProcess (onResize screen $$ handleResize)
-
-      watchP ∷ Aff Unit
-      watchP = let watchDirs = if test then [srcPath, testPath] else [srcPath]
-               in runProcess (watch watchDirs $$ fileListener)
-
-      quitP ∷ Aff Unit
-      quitP = runProcess (onQuit screen ["q", "C-c"] $$ handleQuit)
+      allProducer :: Producer Query Aff Unit
+      allProducer =
+        (onQuit screen ["q", "C-c"] $~ transform (const Quit))
+        `mergeProducers`
+        (onResize screen $~ forever (transform (const Resize)))
+        `mergeProducers`
+        (watch watchDirs $~ forever (transform FileChange))
 
     -- Wait for the initial build to finish first
     runCmd initialBuild
 
     -- Run event listeners in parallel. They don't ever finish.
-    sequential $ parallel resizeP <|> parallel watchP <|> parallel quitP
+    runProcess (allProducer $$ allConsumer)
+
+mergeProducers :: forall o a. Producer o Aff a -> Producer o Aff a -> Producer o Aff Unit
+mergeProducers l r = do
+  var <- lift AV.empty
+
+  let c = consumer \i -> AV.put i var *> pure Nothing
+
+  void $ lift $ forkAff do
+    void $ sequential $ parallel (runProcess (l $$ c)) *> parallel (runProcess (r $$ c))
+    AV.kill (error "Both ended") var
+
+  produceAff \emitter -> do
+    let go = do
+          status <- AV.status var
+          if AV.isKilled status
+            then close emitter unit
+            else do
+              a <- AV.take var
+              emit emitter a
+              go
+    go
 
 main ∷ Effect Unit
 main = do

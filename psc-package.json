@@ -3,6 +3,7 @@
   "set": "master",
   "source": "https://github.com/anttih/package-sets.git",
   "depends": [
+    "avar",
     "spec",
     "prelude",
     "exceptions",
