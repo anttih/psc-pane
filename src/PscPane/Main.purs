@@ -34,6 +34,18 @@ foreign import minimatch ∷ String → String → Boolean
 
 data Query = Resize | Quit | FileChange String
 
+run' :: Query -> A.Action Unit
+run' = case _ of
+  Quit -> exit
+  Resize -> do
+    { prevPaneState } <- ask
+    A.drawPaneState prevPaneState
+  FileChange path -> do
+    when (any (minimatch path) ["**/*.purs"]) (rebuildModule path)
+    -- Changing a .js file triggers a full build for now. Should we just
+    -- build and load the purs file?
+    when (any (minimatch path) ["**/*.js"]) buildProject
+
 buildProject ∷ A.Action Unit
 buildProject = do
   err ← A.buildProject
@@ -125,18 +137,6 @@ app options@{ srcPath, testPath, test } = void do
             newState ← run state program
             liftEffect $ Ref.write newState stateRef
         in catchError program' (liftEffect <<< showError)
-
-      run' :: Query -> A.Action Unit
-      run' = case _ of
-        Quit -> exit
-        Resize -> do
-          { prevPaneState } <- ask
-          A.drawPaneState prevPaneState
-        FileChange path -> do
-          when (any (minimatch path) ["**/*.purs"]) (rebuildModule path)
-          -- Changing a .js file triggers a full build for now. Should we just
-          -- build and load the purs file?
-          when (any (minimatch path) ["**/*.js"]) buildProject
 
       handle :: Consumer Query Aff Unit
       handle = consumer \q -> runCmd (run' q) *> pure Nothing
