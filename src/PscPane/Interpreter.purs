@@ -15,8 +15,7 @@ import Effect (Effect)
 import Effect.Aff (Aff, attempt)
 import Effect.Class (liftEffect)
 import Effect.Class.Console as Console
-import Effect.Exception (error)
-import Node.Path as Path
+import Effect.Exception (error, throwException)
 import Node.Process as P
 import PscIde (load, rebuild) as Ide
 import PscIde.Command (RebuildResult(..))
@@ -25,7 +24,6 @@ import PscPane.Config (Config)
 import PscPane.DSL (Action, ActionF(..))
 import PscPane.DSL as Dsl
 import PscPane.Output (display)
-import PscPane.Parser (readPscJson)
 import PscPane.Pretty (formatState)
 import PscPane.Spawn (spawn)
 import PscPane.State (PscFailure(..))
@@ -42,17 +40,9 @@ appN = case _ of
     { port } ← get
     lift $ const a <$> Ide.load port [] []
 
-  BuildProject f -> do
-    { options: { buildPath, srcPath, libPath, testPath, test } } ← get
-    let srcGlob = Path.concat [srcPath, "**", "*.purs"]
-        libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
-        testSrcGlob = Path.concat [testPath, "**", "*.purs"]
-        args = ["build", "--", "--output", buildPath, "--json-errors"]
-            <> if test then pure testSrcGlob else mempty
-    res ← either _.stdErr _.stdErr <$> lift (spawn "psc-package" args)
-    case readPscJson res of
-      Left err → throwError $ error $ "Could not read psc output: " <> err
-      Right res' → pure (f res')
+  Spawn command args f -> do
+    res <- lift (spawn command args)
+    pure (f res)
 
   RunTests f -> do
     { options: { buildPath, testMain } } ← get
@@ -71,22 +61,18 @@ appN = case _ of
   ShowError err a ->
     lift $ const a <$> display err
 
-  Exit reason next -> do
+  Exit reason -> do
     { port } <- get
     void $ lift $ attempt $ Ide.stopServer port
     case reason of
-      Dsl.Quit ->
+      Dsl.Quit -> do
         void $ liftEffect $ P.exit 0
+        liftEffect $ throwException (error "boom")
       Dsl.Error msg -> do
         -- destroy screen
         Console.error $ "Error: " <> msg
-        -- We exit the program before we even return
-        -- anything here. We could throw an exception
-        -- which would early exit this monad but there
-        -- is no need really.
-        liftEffect $ P.exit (-1)
-
-    pure next
+        void $ liftEffect $ P.exit (-1)
+        liftEffect $ throwException (error "boom")
 
   Ask f -> do
     config <- get

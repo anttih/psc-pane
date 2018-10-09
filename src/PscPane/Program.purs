@@ -2,12 +2,14 @@ module PscPane.Program where
 
 import Prelude
 
-import Data.Either (Either(..))
+import Data.Either (Either(..), either)
 import Data.Foldable (any)
 import Data.Maybe (Maybe(..), isNothing)
+import Node.Path as Path
 import PscPane.DSL (Action, ask, exit)
 import PscPane.DSL as A
 import PscPane.DSL as Reason
+import PscPane.Parser (readPscJson)
 import PscPane.Program (Event(FileChange, Resize, Quit, Init), minimatch)
 import PscPane.State (Progress(..), PscFailure, State(..))
 
@@ -32,7 +34,7 @@ run' = case _ of
 
   buildProject ∷ A.Action Unit
   buildProject = do
-    err ← A.buildProject
+    err ← runBuildCommand
     A.loadModules
     case err of
       Just res →
@@ -48,6 +50,21 @@ run' = case _ of
               Right _ → A.drawPaneState TestSuccess
           else
             A.drawPaneState (BuildSuccess Done)
+
+    where
+
+    runBuildCommand :: A.Action (Maybe PscFailure)
+    runBuildCommand = do
+      { options: { buildPath, srcPath, libPath, testPath, test } } ← ask
+      let srcGlob = Path.concat [srcPath, "**", "*.purs"]
+          libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
+          testSrcGlob = Path.concat [testPath, "**", "*.purs"]
+          args = ["build", "--", "--output", buildPath, "--json-errors"]
+              <> if test then pure testSrcGlob else mempty
+      res ← either _.stdErr _.stdErr <$> A.spawn "psc-package" args
+      case readPscJson res of
+        Left err → A.exit (Reason.Error ("Could not read psc output: " <> err))
+        Right res' → pure res'
 
   initialBuild ∷ A.Action Unit
   initialBuild = do
