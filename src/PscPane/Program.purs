@@ -48,8 +48,6 @@ run' = case _ of
           else
             A.drawPaneState (BuildSuccess Done)
 
-    pure unit
-
   initialBuild ∷ A.Action Unit
   initialBuild = do
     A.drawPaneState InitialBuild
@@ -62,7 +60,6 @@ run' = case _ of
     rebuild ← shouldBuildAll
     A.drawPaneState (toPaneState firstErr rebuild)
     when (isNothing firstErr && rebuild) buildProject
-    pure unit
 
     where
     toPaneState ∷ Maybe PscFailure → Boolean → State
