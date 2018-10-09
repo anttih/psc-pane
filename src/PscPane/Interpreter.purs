@@ -73,6 +73,7 @@ appN = case _ of
     void $ lift $ attempt $ Ide.stopServer port
     void $ liftEffect $ P.exit 0
     pure next
+
   Ask f -> do
     config <- get
     pure (f config)
