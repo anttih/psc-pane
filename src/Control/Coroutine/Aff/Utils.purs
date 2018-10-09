@@ -20,13 +20,14 @@ mergeProducers l r = do
     void $ sequential $ parallel (runProcess (l $$ c)) *> parallel (runProcess (r $$ c))
     AV.kill (error "Both ended") var
 
-  produceAff \emitter -> do
-    let go = do
-          status <- AV.status var
-          if AV.isKilled status
-            then close emitter unit
-            else do
-              a <- AV.take var
-              emit emitter a
-              go
-    go
+  produceAff \emitter ->
+    let
+      go = do
+        status <- AV.status var
+        if AV.isKilled status
+          then close emitter unit
+          else do
+            a <- AV.take var
+            emit emitter a
+            go
+    in go
