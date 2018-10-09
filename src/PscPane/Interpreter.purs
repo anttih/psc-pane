@@ -12,12 +12,14 @@ import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), Replacement(..), replace)
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, attempt)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Node.Path as Path
+import Node.Process as P
 import PscIde (load, rebuild)
 import PscIde.Command (RebuildResult(..))
+import PscIde.Server (stopServer)
 import PscPane.Config (Config)
 import PscPane.DSL (ActionF(..), Action)
 import PscPane.Output (display)
@@ -80,6 +82,14 @@ appN (DrawPaneState state a) = do
   void $ modify (_ { prevPaneState = state })
   pure a
 appN (ShowError err a) = lift $ const a <$> display err
+appN (Exit next) = do
+  { port } <- get
+  void $ lift $ attempt $ stopServer port
+  void $ liftEffect $ P.exit 0
+  pure next
+appN (Ask f) = do
+  config <- get
+  pure (f config)
 
 run ∷ ∀ a. Config → Action a → Aff Config
 run state program = execStateT (foldFree appN program) state

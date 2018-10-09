@@ -1,12 +1,13 @@
 module PscPane.DSL where
 
 import Prelude
-import Control.Monad.Free (Free, liftF)
-import Data.Maybe (Maybe)
-import Data.Either (Either)
 
-import PscPane.State (State, PscFailure)
+import Control.Monad.Free (Free, liftF)
+import Data.Either (Either)
+import Data.Maybe (Maybe)
+import PscPane.Config (Config)
 import PscPane.Spawn (SpawnOutput)
+import PscPane.State (State, PscFailure)
 
 data ActionF a
   = RebuildModule String (Maybe PscFailure → a)
@@ -15,6 +16,8 @@ data ActionF a
   | DrawPaneState State a
   | ShowError String a
   | RunTests (Either SpawnOutput SpawnOutput → a)
+  | Exit a
+  | Ask (Config -> a)
   | ShouldRunTests (Boolean → a)
   | ShouldBuildAll (Boolean → a)
 
@@ -43,3 +46,9 @@ drawPaneState state = liftF (DrawPaneState state unit)
 
 showError ∷ String → Action Unit
 showError err = liftF (ShowError err unit)
+
+exit :: Action Unit
+exit = liftF (Exit unit)
+
+ask :: Action Config
+ask = liftF (Ask identity)
