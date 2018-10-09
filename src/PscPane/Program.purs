@@ -21,11 +21,16 @@ foreign import minimatch ∷ String → String → Boolean
 
 run' :: Event -> Action Unit
 run' = case _ of
-  Init -> initialBuild
-  Quit -> exit Reason.Quit
+  Init ->
+    initialBuild
+
+  Quit ->
+    exit Reason.Quit
+
   Resize -> do
     { prevPaneState } <- ask
     A.drawPaneState prevPaneState
+
   FileChange path -> do
     when (any (minimatch path) ["**/*.purs"]) (rebuildModule path)
     -- Changing a .js file triggers a full build for now. Should we just
@@ -36,7 +41,7 @@ run' = case _ of
 
   buildProject ∷ A.Action Unit
   buildProject = do
-    err ← runBuildCommand
+    err ← runBuildCmd
     A.loadModules
     case err of
       Just res →
@@ -55,8 +60,8 @@ run' = case _ of
 
     where
 
-    runBuildCommand :: A.Action (Maybe PscFailure)
-    runBuildCommand = do
+    runBuildCmd :: A.Action (Maybe PscFailure)
+    runBuildCmd = do
       { options: { buildPath, srcPath, libPath, testPath, test } } ← ask
       let srcGlob = Path.concat [srcPath, "**", "*.purs"]
           libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
