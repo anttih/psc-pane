@@ -22,7 +22,7 @@ import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscPane.Config (Options)
 import PscPane.DSL as A
 import PscPane.Interpreter (run)
-import PscPane.Program (Query(..), run')
+import PscPane.Program (Event(..), run')
 import PscPane.Server (startPscIdeServer)
 import PscPane.State (State(..))
 import PscPane.Watcher (watch)
@@ -78,10 +78,10 @@ app options@{ srcPath, testPath, test } = void do
             liftEffect $ Ref.write newState stateRef
         in catchError program' (liftEffect <<< showError)
 
-      handle :: Consumer Query Aff Unit
+      handle :: Consumer Event Aff Unit
       handle = consumer \q -> runCmd (run' q) *> pure Nothing
 
-      queryProducer :: Producer Query Aff Unit
+      queryProducer :: Producer Event Aff Unit
       queryProducer =
         emit Init
         `mergeProducers`

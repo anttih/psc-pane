@@ -7,14 +7,14 @@ import Data.Foldable (any)
 import Data.Maybe (Maybe(..), isNothing)
 import PscPane.DSL (Action, ask, exit)
 import PscPane.DSL as A
-import PscPane.Program (Query(FileChange, Resize, Quit, Init), minimatch)
+import PscPane.Program (Event(FileChange, Resize, Quit, Init), minimatch)
 import PscPane.State (Progress(..), PscFailure, State(..))
 
-data Query = Init | Resize | Quit | FileChange String
+data Event = Init | Resize | Quit | FileChange String
 
 foreign import minimatch ∷ String → String → Boolean
 
-run' :: Query -> Action Unit
+run' :: Event -> Action Unit
 run' = case _ of
   Init -> initialBuild
   Quit -> exit
