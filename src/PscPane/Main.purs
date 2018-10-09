@@ -13,7 +13,7 @@ import Data.Foldable (any)
 import Data.List (range)
 import Data.Maybe (Maybe(..), maybe, isNothing)
 import Effect (Effect)
-import Effect.Aff (Aff, attempt, forkAff, parallel, runAff, sequential)
+import Effect.Aff (Aff, forkAff, parallel, runAff, sequential)
 import Effect.Aff.AVar as AV
 import Effect.Class (liftEffect)
 import Effect.Console as Console
@@ -22,8 +22,8 @@ import Effect.Ref as Ref
 import Node.Process as P
 import Node.Yargs.Applicative (flag, yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
-import PscIde.Server (stopServer)
 import PscPane.Config (Options)
+import PscPane.DSL (ask, exit)
 import PscPane.DSL as A
 import PscPane.Interpreter (run)
 import PscPane.Server (startPscIdeServer)
@@ -129,12 +129,12 @@ app options@{ srcPath, testPath, test } = void do
       allConsumer :: Consumer Query Aff Unit
       allConsumer = consumer case _ of
         Quit -> do
-          _ ← attempt $ stopServer port
-          _ ← liftEffect $ P.exit 0
+          runCmd exit
           pure (Just unit)
         Resize -> do
-          { prevPaneState } ← liftEffect $ Ref.read stateRef
-          runCmd (A.drawPaneState prevPaneState)
+          runCmd do
+            { prevPaneState } <- ask
+            A.drawPaneState prevPaneState
           pure Nothing
         FileChange path -> do
           when (any (minimatch path) ["**/*.purs"]) $ runCmd (rebuildModule path)
