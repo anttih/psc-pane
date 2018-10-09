@@ -41,7 +41,7 @@ appN = case _ of
     lift $ const a <$> Ide.load port [] []
 
   BuildProject f -> do
-    { screen, box, options: { buildPath, srcPath, libPath, testPath, test } } ← get
+    { options: { buildPath, srcPath, libPath, testPath, test } } ← get
     let srcGlob = Path.concat [srcPath, "**", "*.purs"]
         libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
         testSrcGlob = Path.concat [testPath, "**", "*.purs"]
