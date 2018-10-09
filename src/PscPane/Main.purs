@@ -3,18 +3,16 @@ module PscPane.Main where
 import Prelude hiding (append)
 
 import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen, destroy)
-import Control.Coroutine (Consumer, Producer, consumer, runProcess, transform, ($$), ($~))
-import Control.Coroutine.Aff (close, emit, produceAff)
+import Control.Coroutine (Consumer, Producer, consumer, emit, runProcess, transform, ($$), ($~))
+import Control.Coroutine.Aff.Utils (mergeProducers)
 import Control.Monad.Error.Class (throwError, catchError)
 import Control.Monad.Rec.Class (forever)
-import Control.Monad.Trans.Class (lift)
 import Data.Either (Either(..))
 import Data.Foldable (any)
 import Data.List (range)
 import Data.Maybe (Maybe(..), maybe, isNothing)
 import Effect (Effect)
-import Effect.Aff (Aff, forkAff, parallel, runAff, sequential)
-import Effect.Aff.AVar as AV
+import Effect.Aff (Aff, runAff)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (Error, error, message)
@@ -32,10 +30,11 @@ import PscPane.Watcher (watch)
 
 foreign import minimatch ∷ String → String → Boolean
 
-data Query = Resize | Quit | FileChange String
+data Query = Init | Resize | Quit | FileChange String
 
 run' :: Query -> A.Action Unit
 run' = case _ of
+  Init -> initialBuild
   Quit -> exit
   Resize -> do
     { prevPaneState } <- ask
@@ -46,46 +45,48 @@ run' = case _ of
     -- build and load the purs file?
     when (any (minimatch path) ["**/*.js"]) buildProject
 
-buildProject ∷ A.Action Unit
-buildProject = do
-  err ← A.buildProject
-  A.loadModules
-  case err of
-    Just res →
-      A.drawPaneState (PscError res)
-    Nothing → do
-      shouldRunTests ← A.shouldRunTests
-      if shouldRunTests then
-        do
-          A.drawPaneState (BuildSuccess (InProgress "running tests..."))
-          testResult ← A.runTests
-          case testResult of
-            Left out → A.drawPaneState (TestFailure out)
-            Right _ → A.drawPaneState TestSuccess
-        else
-          A.drawPaneState (BuildSuccess Done)
-
-  pure unit
-
-initialBuild ∷ A.Action Unit
-initialBuild = do
-  A.drawPaneState InitialBuild
-  buildProject
-
-rebuildModule ∷ String → A.Action Unit
-rebuildModule path = do
-  A.drawPaneState (CompilingModule path)
-  firstErr ← A.rebuildModule path
-  rebuild ← A.shouldBuildAll
-  A.drawPaneState (toPaneState firstErr rebuild)
-  when (isNothing firstErr && rebuild) buildProject
-  pure unit
-
   where
-  toPaneState ∷ Maybe PscFailure → Boolean → State
-  toPaneState (Just res) _ = PscError res
-  toPaneState Nothing true = ModuleOk path (InProgress "building project...")
-  toPaneState Nothing false = ModuleOk path Done
+
+  buildProject ∷ A.Action Unit
+  buildProject = do
+    err ← A.buildProject
+    A.loadModules
+    case err of
+      Just res →
+        A.drawPaneState (PscError res)
+      Nothing → do
+        shouldRunTests ← A.shouldRunTests
+        if shouldRunTests then
+          do
+            A.drawPaneState (BuildSuccess (InProgress "running tests..."))
+            testResult ← A.runTests
+            case testResult of
+              Left out → A.drawPaneState (TestFailure out)
+              Right _ → A.drawPaneState TestSuccess
+          else
+            A.drawPaneState (BuildSuccess Done)
+
+    pure unit
+
+  initialBuild ∷ A.Action Unit
+  initialBuild = do
+    A.drawPaneState InitialBuild
+    buildProject
+
+  rebuildModule ∷ String → A.Action Unit
+  rebuildModule path = do
+    A.drawPaneState (CompilingModule path)
+    firstErr ← A.rebuildModule path
+    rebuild ← A.shouldBuildAll
+    A.drawPaneState (toPaneState firstErr rebuild)
+    when (isNothing firstErr && rebuild) buildProject
+    pure unit
+
+    where
+    toPaneState ∷ Maybe PscFailure → Boolean → State
+    toPaneState (Just res) _ = PscError res
+    toPaneState Nothing true = ModuleOk path (InProgress "building project...")
+    toPaneState Nothing false = ModuleOk path Done
 
 app ∷ Options → Effect Unit
 app options@{ srcPath, testPath, test } = void do
@@ -143,38 +144,16 @@ app options@{ srcPath, testPath, test } = void do
 
       queryProducer :: Producer Query Aff Unit
       queryProducer =
+        emit Init
+        `mergeProducers`
         (onQuit screen ["q", "C-c"] $~ transform (const Quit))
         `mergeProducers`
         (onResize screen $~ forever (transform (const Resize)))
         `mergeProducers`
         (watch watchDirs $~ forever (transform FileChange))
 
-    -- Wait for the initial build to finish first
-    runCmd initialBuild
-
     -- Run event listeners in parallel. They don't ever finish.
     runProcess (queryProducer $$ handle)
-
-mergeProducers :: forall o a. Producer o Aff a -> Producer o Aff a -> Producer o Aff Unit
-mergeProducers l r = do
-  var <- lift AV.empty
-
-  let c = consumer \i -> AV.put i var *> pure Nothing
-
-  void $ lift $ forkAff do
-    void $ sequential $ parallel (runProcess (l $$ c)) *> parallel (runProcess (r $$ c))
-    AV.kill (error "Both ended") var
-
-  produceAff \emitter -> do
-    let go = do
-          status <- AV.status var
-          if AV.isKilled status
-            then close emitter unit
-            else do
-              a <- AV.take var
-              emit emitter a
-              go
-    go
 
 main ∷ Effect Unit
 main = do

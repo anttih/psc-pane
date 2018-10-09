@@ -4,12 +4,12 @@ import Prelude
 
 import Control.Coroutine (Consumer, consumer, runProcess, ($$))
 import Control.Coroutine.Aff (close, emit, produceAff)
+import Control.Coroutine.Aff.Utils (mergeProducers)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class.Console (log)
 import Effect.Class.Console as Console
-import PscPane.Main (mergeProducers)
 import PscPane.Pretty (formatTestOutput)
 import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual)
