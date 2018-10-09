@@ -126,25 +126,23 @@ app options@{ srcPath, testPath, test } = void do
             liftEffect $ Ref.write newState stateRef
         in catchError program' (liftEffect <<< showError)
 
-      allConsumer :: Consumer Query Aff Unit
-      allConsumer = consumer case _ of
-        Quit -> do
-          runCmd exit
-          pure (Just unit)
+      run' :: Query -> A.Action Unit
+      run' = case _ of
+        Quit -> exit
         Resize -> do
-          runCmd do
-            { prevPaneState } <- ask
-            A.drawPaneState prevPaneState
-          pure Nothing
+          { prevPaneState } <- ask
+          A.drawPaneState prevPaneState
         FileChange path -> do
-          when (any (minimatch path) ["**/*.purs"]) $ runCmd (rebuildModule path)
+          when (any (minimatch path) ["**/*.purs"]) (rebuildModule path)
           -- Changing a .js file triggers a full build for now. Should we just
           -- build and load the purs file?
-          when (any (minimatch path) ["**/*.js"]) $ runCmd buildProject
-          pure Nothing
+          when (any (minimatch path) ["**/*.js"]) buildProject
 
-      allProducer :: Producer Query Aff Unit
-      allProducer =
+      handle :: Consumer Query Aff Unit
+      handle = consumer \q -> runCmd (run' q) *> pure Nothing
+
+      queryProducer :: Producer Query Aff Unit
+      queryProducer =
         (onQuit screen ["q", "C-c"] $~ transform (const Quit))
         `mergeProducers`
         (onResize screen $~ forever (transform (const Resize)))
@@ -155,7 +153,7 @@ app options@{ srcPath, testPath, test } = void do
     runCmd initialBuild
 
     -- Run event listeners in parallel. They don't ever finish.
-    runProcess (allProducer $$ allConsumer)
+    runProcess (queryProducer $$ handle)
 
 mergeProducers :: forall o a. Producer o Aff a -> Producer o Aff a -> Producer o Aff Unit
 mergeProducers l r = do
