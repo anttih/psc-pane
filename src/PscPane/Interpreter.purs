@@ -14,14 +14,16 @@ import Data.String (Pattern(..), Replacement(..), replace)
 import Effect (Effect)
 import Effect.Aff (Aff, attempt)
 import Effect.Class (liftEffect)
+import Effect.Class.Console as Console
 import Effect.Exception (error)
 import Node.Path as Path
 import Node.Process as P
 import PscIde (load, rebuild) as Ide
-import PscIde.Server (stopServer) as Ide
 import PscIde.Command (RebuildResult(..))
+import PscIde.Server (stopServer) as Ide
 import PscPane.Config (Config)
-import PscPane.DSL (ActionF(..), Action)
+import PscPane.DSL (Action, ActionF(..))
+import PscPane.DSL as Dsl
 import PscPane.Output (display)
 import PscPane.Parser (readPscJson)
 import PscPane.Pretty (formatState)
@@ -69,10 +71,21 @@ appN = case _ of
   ShowError err a ->
     lift $ const a <$> display err
 
-  Exit next -> do
+  Exit reason next -> do
     { port } <- get
     void $ lift $ attempt $ Ide.stopServer port
-    void $ liftEffect $ P.exit 0
+    case reason of
+      Dsl.Quit ->
+        void $ liftEffect $ P.exit 0
+      Dsl.Error msg -> do
+        -- destroy screen
+        Console.error $ "Error: " <> msg
+        -- We exit the program before we even return
+        -- anything here. We could throw an exception
+        -- which would early exit this monad but there
+        -- is no need really.
+        liftEffect $ P.exit (-1)
+
     pure next
 
   Ask f -> do

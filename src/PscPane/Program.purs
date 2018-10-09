@@ -7,6 +7,7 @@ import Data.Foldable (any)
 import Data.Maybe (Maybe(..), isNothing)
 import PscPane.DSL (Action, ask, exit)
 import PscPane.DSL as A
+import PscPane.DSL as Reason
 import PscPane.Program (Event(FileChange, Resize, Quit, Init), minimatch)
 import PscPane.State (Progress(..), PscFailure, State(..))
 
@@ -17,7 +18,7 @@ foreign import minimatch ∷ String → String → Boolean
 run' :: Event -> Action Unit
 run' = case _ of
   Init -> initialBuild
-  Quit -> exit
+  Quit -> exit Reason.Quit
   Resize -> do
     { prevPaneState } <- ask
     A.drawPaneState prevPaneState

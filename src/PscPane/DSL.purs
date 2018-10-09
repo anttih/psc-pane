@@ -9,6 +9,8 @@ import PscPane.Config (Config)
 import PscPane.Spawn (SpawnOutput)
 import PscPane.State (State, PscFailure)
 
+data ExitReason = Quit | Error String
+
 data ActionF a
   = RebuildModule String (Maybe PscFailure → a)
   | LoadModules a
@@ -16,7 +18,7 @@ data ActionF a
   | DrawPaneState State a
   | ShowError String a
   | RunTests (Either SpawnOutput SpawnOutput → a)
-  | Exit a
+  | Exit ExitReason a
   | Ask (Config -> a)
 
 type Action a = Free ActionF a
@@ -39,8 +41,8 @@ drawPaneState state = liftF (DrawPaneState state unit)
 showError ∷ String → Action Unit
 showError err = liftF (ShowError err unit)
 
-exit :: Action Unit
-exit = liftF (Exit unit)
+exit :: ExitReason -> Action Unit
+exit reason = liftF (Exit reason unit)
 
 ask :: Action Config
 ask = liftF (Ask identity)
