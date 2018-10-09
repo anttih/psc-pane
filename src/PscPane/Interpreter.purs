@@ -68,9 +68,6 @@ appN (RunTests f) = do
     replace (Pattern "'") (Replacement "\\'")
     <<< replace (Pattern "\\") (Replacement "'")
 
-appN (ShouldBuildAll f) = do
-  { options: { rebuild }} ← get
-  pure (f rebuild)
 appN (DrawPaneState state a) = do
   { screen, box, cwd, options: { colorize } } ← get
   height ← liftEffect rows

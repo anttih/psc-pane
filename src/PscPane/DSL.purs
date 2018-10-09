@@ -18,7 +18,6 @@ data ActionF a
   | RunTests (Either SpawnOutput SpawnOutput → a)
   | Exit a
   | Ask (Config -> a)
-  | ShouldBuildAll (Boolean → a)
 
 type Action a = Free ActionF a
 
@@ -33,9 +32,6 @@ buildProject = liftF (BuildProject identity)
 
 runTests ∷ Action (Either SpawnOutput SpawnOutput)
 runTests = liftF (RunTests identity)
-
-shouldBuildAll ∷ Action Boolean
-shouldBuildAll = liftF (ShouldBuildAll identity)
 
 drawPaneState ∷ State → Action Unit
 drawPaneState state = liftF (DrawPaneState state unit)

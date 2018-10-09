@@ -59,7 +59,7 @@ run' = case _ of
   rebuildModule path = do
     A.drawPaneState (CompilingModule path)
     firstErr ← A.rebuildModule path
-    rebuild ← A.shouldBuildAll
+    rebuild ← shouldBuildAll
     A.drawPaneState (toPaneState firstErr rebuild)
     when (isNothing firstErr && rebuild) buildProject
     pure unit
@@ -75,4 +75,7 @@ run' = case _ of
     { options: { test } } ← ask
     pure test
 
-  -- { options: { rebuild }} ← get
+  shouldBuildAll :: A.Action Boolean
+  shouldBuildAll = do
+    { options: { rebuild }} ← ask
+    pure rebuild
