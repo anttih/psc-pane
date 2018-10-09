@@ -66,7 +66,8 @@ appN = case _ of
     void $ modify (_ { prevPaneState = state })
     pure a
 
-  ShowError err a -> lift $ const a <$> display err
+  ShowError err a ->
+    lift $ const a <$> display err
 
   Exit next -> do
     { port } <- get
