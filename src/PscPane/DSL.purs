@@ -16,7 +16,6 @@ data ActionF a
   | LoadModules a
   | DrawPaneState State a
   | ShowError String a
-  | RunTests (Either SpawnOutput SpawnOutput → a)
   | Exit ExitReason
   | Ask (Config -> a)
   | Spawn String (Array String) (Either SpawnOutput SpawnOutput -> a)
@@ -28,9 +27,6 @@ rebuildModule path = liftF (RebuildModule path identity)
 
 loadModules ∷ Action Unit
 loadModules = liftF (LoadModules unit)
-
-runTests ∷ Action (Either SpawnOutput SpawnOutput)
-runTests = liftF (RunTests identity)
 
 drawPaneState ∷ State → Action Unit
 drawPaneState state = liftF (DrawPaneState state unit)

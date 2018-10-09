@@ -5,12 +5,14 @@ import Prelude
 import Data.Either (Either(..), either)
 import Data.Foldable (any)
 import Data.Maybe (Maybe(..), isNothing)
+import Data.String (Pattern(..), Replacement(..), replace)
 import Node.Path as Path
 import PscPane.DSL (Action, ask, exit)
 import PscPane.DSL as A
 import PscPane.DSL as Reason
 import PscPane.Parser (readPscJson)
 import PscPane.Program (Event(FileChange, Resize, Quit, Init), minimatch)
+import PscPane.Spawn (SpawnOutput)
 import PscPane.State (Progress(..), PscFailure, State(..))
 
 data Event = Init | Resize | Quit | FileChange String
@@ -44,7 +46,7 @@ run' = case _ of
         if runTests then
           do
             A.drawPaneState (BuildSuccess (InProgress "running tests..."))
-            testResult ← A.runTests
+            testResult ← runTestCmd
             case testResult of
               Left out → A.drawPaneState (TestFailure out)
               Right _ → A.drawPaneState TestSuccess
@@ -65,6 +67,21 @@ run' = case _ of
       case readPscJson res of
         Left err → A.exit (Reason.Error ("Could not read psc output: " <> err))
         Right res' → pure res'
+
+    runTestCmd :: A.Action (Either SpawnOutput SpawnOutput)
+    runTestCmd = do
+      { options: { buildPath, testMain } } ← ask
+      let modulePath = "./" <> buildPath <> "/" <> jsEscape testMain
+      A.spawn "node" ["-e", "require('" <> modulePath <> "').main();"]
+
+      where
+      -- | This is from bodil/pulp
+      -- |
+      -- | Escape a string for insertion into a JS string literal.
+      jsEscape :: String -> String
+      jsEscape =
+        replace (Pattern "'") (Replacement "\\'")
+        <<< replace (Pattern "\\") (Replacement "'")
 
   initialBuild ∷ A.Action Unit
   initialBuild = do

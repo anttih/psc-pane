@@ -10,7 +10,6 @@ import Control.Monad.State.Trans (StateT, lift, execStateT)
 import Data.Array (head)
 import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..))
-import Data.String (Pattern(..), Replacement(..), replace)
 import Effect (Effect)
 import Effect.Aff (Aff, attempt)
 import Effect.Class (liftEffect)
@@ -43,12 +42,6 @@ appN = case _ of
   Spawn command args f -> do
     res <- lift (spawn command args)
     pure (f res)
-
-  RunTests f -> do
-    { options: { buildPath, testMain } } ← get
-    let modulePath = "./" <> buildPath <> "/" <> jsEscape testMain
-    res ← lift $ spawn "node" ["-e", "require('" <> modulePath <> "').main();"]
-    pure $ f res
 
   DrawPaneState state a -> do
     { screen, box, cwd, options: { colorize } } ← get
@@ -84,13 +77,6 @@ appN = case _ of
   takeOne (Right (RebuildResult warnings)) = Warning <$> head warnings
   takeOne (Left (RebuildResult errors)) = Error <$> head errors
 
-  -- | This is from bodil/pulp
-  -- |
-  -- | Escape a string for insertion into a JS string literal.
-  jsEscape :: String -> String
-  jsEscape =
-    replace (Pattern "'") (Replacement "\\'")
-    <<< replace (Pattern "\\") (Replacement "'")
 
 run ∷ ∀ a. Config → Action a → Aff Config
 run state program = execStateT (foldFree appN program) state
