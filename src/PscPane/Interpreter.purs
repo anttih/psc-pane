@@ -29,37 +29,60 @@ import PscPane.Spawn (spawn)
 import PscPane.State (PscFailure(..))
 
 appN ∷ ActionF ~> StateT Config Aff
-appN (RebuildModule path f) = do
-  { port } ← get
-  res ← lift $ rebuild port path Nothing
-  either (throwError <<< error) (pure <<< f <<< takeOne) res
+appN = case _ of
+
+  RebuildModule path f -> do
+    { port } ← get
+    res ← lift $ rebuild port path Nothing
+    either (throwError <<< error) (pure <<< f <<< takeOne) res
+
+  LoadModules a -> do
+    { port } ← get
+    lift $ const a <$> load port [] []
+
+  BuildProject f -> do
+    { screen, box, options: { buildPath, srcPath, libPath, testPath, test } } ← get
+    let srcGlob = Path.concat [srcPath, "**", "*.purs"]
+        libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
+        testSrcGlob = Path.concat [testPath, "**", "*.purs"]
+        args = ["build", "--", "--output", buildPath, "--json-errors"]
+            <> if test then pure testSrcGlob else mempty
+    res ← either _.stdErr _.stdErr <$> lift (spawn "psc-package" args)
+    case readPscJson res of
+      Left err → throwError $ error $ "Could not read psc output: " <> err
+      Right res' → pure (f res')
+
+  RunTests f -> do
+    { options: { buildPath, testMain } } ← get
+    let modulePath = "./" <> buildPath <> "/" <> jsEscape testMain
+    res ← lift $ spawn "node" ["-e", "require('" <> modulePath <> "').main();"]
+    pure $ f res
+
+  DrawPaneState state a -> do
+    { screen, box, cwd, options: { colorize } } ← get
+    height ← liftEffect rows
+    liftEffect (setContent box (formatState colorize cwd height state))
+    liftEffect (render screen)
+    void $ modify (_ { prevPaneState = state })
+    pure a
+
+  ShowError err a -> lift $ const a <$> display err
+
+  Exit next -> do
+    { port } <- get
+    void $ lift $ attempt $ stopServer port
+    void $ liftEffect $ P.exit 0
+    pure next
+  Ask f -> do
+    config <- get
+    pure (f config)
 
   where
+
   takeOne ∷ Either RebuildResult RebuildResult → Maybe PscFailure
   takeOne (Right (RebuildResult warnings)) = Warning <$> head warnings
   takeOne (Left (RebuildResult errors)) = Error <$> head errors
 
-appN (LoadModules a) = do
-  { port } ← get
-  lift $ const a <$> load port [] []
-appN (BuildProject f) = do
-  { screen, box, options: { buildPath, srcPath, libPath, testPath, test } } ← get
-  let srcGlob = Path.concat [srcPath, "**", "*.purs"]
-      libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
-      testSrcGlob = Path.concat [testPath, "**", "*.purs"]
-      args = ["build", "--", "--output", buildPath, "--json-errors"]
-           <> if test then pure testSrcGlob else mempty
-  res ← either _.stdErr _.stdErr <$> lift (spawn "psc-package" args)
-  case readPscJson res of
-    Left err → throwError $ error $ "Could not read psc output: " <> err
-    Right res' → pure (f res')
-appN (RunTests f) = do
-  { options: { buildPath, testMain } } ← get
-  let modulePath = "./" <> buildPath <> "/" <> jsEscape testMain
-  res ← lift $ spawn "node" ["-e", "require('" <> modulePath <> "').main();"]
-  pure $ f res
-
-  where
   -- | This is from bodil/pulp
   -- |
   -- | Escape a string for insertion into a JS string literal.
@@ -67,23 +90,6 @@ appN (RunTests f) = do
   jsEscape =
     replace (Pattern "'") (Replacement "\\'")
     <<< replace (Pattern "\\") (Replacement "'")
-
-appN (DrawPaneState state a) = do
-  { screen, box, cwd, options: { colorize } } ← get
-  height ← liftEffect rows
-  liftEffect (setContent box (formatState colorize cwd height state))
-  liftEffect (render screen)
-  void $ modify (_ { prevPaneState = state })
-  pure a
-appN (ShowError err a) = lift $ const a <$> display err
-appN (Exit next) = do
-  { port } <- get
-  void $ lift $ attempt $ stopServer port
-  void $ liftEffect $ P.exit 0
-  pure next
-appN (Ask f) = do
-  config <- get
-  pure (f config)
 
 run ∷ ∀ a. Config → Action a → Aff Config
 run state program = execStateT (foldFree appN program) state
