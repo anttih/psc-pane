@@ -8,9 +8,8 @@ import Control.Coroutine.Aff.Utils (mergeProducers)
 import Control.Monad.Error.Class (throwError, catchError)
 import Control.Monad.Rec.Class (forever)
 import Data.Either (Either(..))
-import Data.Foldable (any)
 import Data.List (range)
-import Data.Maybe (Maybe(..), maybe, isNothing)
+import Data.Maybe (Maybe(..), maybe)
 import Effect (Effect)
 import Effect.Aff (Aff, runAff)
 import Effect.Class (liftEffect)
@@ -21,72 +20,12 @@ import Node.Process as P
 import Node.Yargs.Applicative (flag, yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscPane.Config (Options)
-import PscPane.DSL (ask, exit)
 import PscPane.DSL as A
 import PscPane.Interpreter (run)
+import PscPane.Program (Query(..), run')
 import PscPane.Server (startPscIdeServer)
-import PscPane.State (State(..), Progress(InProgress, Done), PscFailure)
+import PscPane.State (State(..))
 import PscPane.Watcher (watch)
-
-foreign import minimatch ∷ String → String → Boolean
-
-data Query = Init | Resize | Quit | FileChange String
-
-run' :: Query -> A.Action Unit
-run' = case _ of
-  Init -> initialBuild
-  Quit -> exit
-  Resize -> do
-    { prevPaneState } <- ask
-    A.drawPaneState prevPaneState
-  FileChange path -> do
-    when (any (minimatch path) ["**/*.purs"]) (rebuildModule path)
-    -- Changing a .js file triggers a full build for now. Should we just
-    -- build and load the purs file?
-    when (any (minimatch path) ["**/*.js"]) buildProject
-
-  where
-
-  buildProject ∷ A.Action Unit
-  buildProject = do
-    err ← A.buildProject
-    A.loadModules
-    case err of
-      Just res →
-        A.drawPaneState (PscError res)
-      Nothing → do
-        shouldRunTests ← A.shouldRunTests
-        if shouldRunTests then
-          do
-            A.drawPaneState (BuildSuccess (InProgress "running tests..."))
-            testResult ← A.runTests
-            case testResult of
-              Left out → A.drawPaneState (TestFailure out)
-              Right _ → A.drawPaneState TestSuccess
-          else
-            A.drawPaneState (BuildSuccess Done)
-
-    pure unit
-
-  initialBuild ∷ A.Action Unit
-  initialBuild = do
-    A.drawPaneState InitialBuild
-    buildProject
-
-  rebuildModule ∷ String → A.Action Unit
-  rebuildModule path = do
-    A.drawPaneState (CompilingModule path)
-    firstErr ← A.rebuildModule path
-    rebuild ← A.shouldBuildAll
-    A.drawPaneState (toPaneState firstErr rebuild)
-    when (isNothing firstErr && rebuild) buildProject
-    pure unit
-
-    where
-    toPaneState ∷ Maybe PscFailure → Boolean → State
-    toPaneState (Just res) _ = PscError res
-    toPaneState Nothing true = ModuleOk path (InProgress "building project...")
-    toPaneState Nothing false = ModuleOk path Done
 
 app ∷ Options → Effect Unit
 app options@{ srcPath, testPath, test } = void do
@@ -152,7 +91,6 @@ app options@{ srcPath, testPath, test } = void do
         `mergeProducers`
         (watch watchDirs $~ forever (transform FileChange))
 
-    -- Run event listeners in parallel. They don't ever finish.
     runProcess (queryProducer $$ handle)
 
 main ∷ Effect Unit

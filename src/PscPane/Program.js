@@ -1,3 +1,5 @@
+// module PscPane.Program
+
 "use strict";
 
 exports.minimatch = function(str) {
@@ -5,4 +7,3 @@ exports.minimatch = function(str) {
     return require("minimatch")(str, glob);
   };
 };
-

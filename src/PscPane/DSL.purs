@@ -18,7 +18,6 @@ data ActionF a
   | RunTests (Either SpawnOutput SpawnOutput → a)
   | Exit a
   | Ask (Config -> a)
-  | ShouldRunTests (Boolean → a)
   | ShouldBuildAll (Boolean → a)
 
 type Action a = Free ActionF a
@@ -34,9 +33,6 @@ buildProject = liftF (BuildProject identity)
 
 runTests ∷ Action (Either SpawnOutput SpawnOutput)
 runTests = liftF (RunTests identity)
-
-shouldRunTests ∷ Action Boolean
-shouldRunTests = liftF (ShouldRunTests identity)
 
 shouldBuildAll ∷ Action Boolean
 shouldBuildAll = liftF (ShouldBuildAll identity)

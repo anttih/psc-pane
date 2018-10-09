@@ -68,9 +68,6 @@ appN (RunTests f) = do
     replace (Pattern "'") (Replacement "\\'")
     <<< replace (Pattern "\\") (Replacement "'")
 
-appN (ShouldRunTests f) = do
-  { options: { test } } ← get
-  pure (f test)
 appN (ShouldBuildAll f) = do
   { options: { rebuild }} ← get
   pure (f rebuild)
