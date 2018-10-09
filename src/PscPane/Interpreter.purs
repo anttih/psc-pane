@@ -17,9 +17,9 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Node.Path as Path
 import Node.Process as P
-import PscIde (load, rebuild)
+import PscIde (load, rebuild) as Ide
+import PscIde.Server (stopServer) as Ide
 import PscIde.Command (RebuildResult(..))
-import PscIde.Server (stopServer)
 import PscPane.Config (Config)
 import PscPane.DSL (ActionF(..), Action)
 import PscPane.Output (display)
@@ -33,12 +33,12 @@ appN = case _ of
 
   RebuildModule path f -> do
     { port } ← get
-    res ← lift $ rebuild port path Nothing
+    res ← lift $ Ide.rebuild port path Nothing
     either (throwError <<< error) (pure <<< f <<< takeOne) res
 
   LoadModules a -> do
     { port } ← get
-    lift $ const a <$> load port [] []
+    lift $ const a <$> Ide.load port [] []
 
   BuildProject f -> do
     { screen, box, options: { buildPath, srcPath, libPath, testPath, test } } ← get
@@ -70,7 +70,7 @@ appN = case _ of
 
   Exit next -> do
     { port } <- get
-    void $ lift $ attempt $ stopServer port
+    void $ lift $ attempt $ Ide.stopServer port
     void $ liftEffect $ P.exit 0
     pure next
   Ask f -> do
