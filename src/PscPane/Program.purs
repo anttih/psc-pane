@@ -37,82 +37,78 @@ eval = case _ of
     -- build and load the purs file?
     when (any (minimatch path) ["**/*.js"]) buildProject
 
+buildProject ∷ DSL Unit
+buildProject = do
+  err ← runBuildCmd
+  A.loadModules
+  case err of
+    Just res →
+      A.drawPaneState (PscError res)
+    Nothing → do
+      runTests ← shouldRunTests
+      if runTests then
+        do
+          A.drawPaneState (BuildSuccess (InProgress "running tests..."))
+          testResult ← runTestCmd
+          case testResult of
+            Left out → A.drawPaneState (TestFailure out)
+            Right _ → A.drawPaneState TestSuccess
+        else
+          A.drawPaneState (BuildSuccess Done)
+
+runBuildCmd :: DSL (Maybe PscFailure)
+runBuildCmd = do
+  { options: { buildPath, srcPath, libPath, testPath, test } } ← ask
+  let srcGlob = Path.concat [srcPath, "**", "*.purs"]
+      libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
+      testSrcGlob = Path.concat [testPath, "**", "*.purs"]
+      args = ["build", "--", "--output", buildPath, "--json-errors"]
+          <> if test then pure testSrcGlob else mempty
+  res ← either _.stdErr _.stdErr <$> A.spawn "psc-package" args
+  case readPscJson res of
+    Left err → A.exit (Reason.Error ("Could not read psc output: " <> err))
+    Right res' → pure res'
+
+runTestCmd :: DSL (Either SpawnOutput SpawnOutput)
+runTestCmd = do
+  { options: { buildPath, testMain } } ← ask
+  let modulePath = "./" <> buildPath <> "/" <> jsEscape testMain
+  A.spawn "node" ["-e", "require('" <> modulePath <> "').main();"]
+
   where
+  -- | This is from bodil/pulp
+  -- |
+  -- | Escape a string for insertion into a JS string literal.
+  jsEscape :: String -> String
+  jsEscape =
+    replace (Pattern "'") (Replacement "\\'")
+    <<< replace (Pattern "\\") (Replacement "'")
 
-  buildProject ∷ DSL Unit
-  buildProject = do
-    err ← runBuildCmd
-    A.loadModules
-    case err of
-      Just res →
-        A.drawPaneState (PscError res)
-      Nothing → do
-        runTests ← shouldRunTests
-        if runTests then
-          do
-            A.drawPaneState (BuildSuccess (InProgress "running tests..."))
-            testResult ← runTestCmd
-            case testResult of
-              Left out → A.drawPaneState (TestFailure out)
-              Right _ → A.drawPaneState TestSuccess
-          else
-            A.drawPaneState (BuildSuccess Done)
+initialBuild ∷ DSL Unit
+initialBuild = do
+  A.drawPaneState InitialBuild
+  buildProject
 
-    where
+rebuildModule ∷ String → DSL Unit
+rebuildModule path = do
+  A.drawPaneState (CompilingModule path)
+  firstErr ← A.rebuildModule path
+  rebuild ← shouldBuildAll
+  A.drawPaneState (toPaneState firstErr rebuild)
+  when (isNothing firstErr && rebuild) buildProject
 
-    runBuildCmd :: DSL (Maybe PscFailure)
-    runBuildCmd = do
-      { options: { buildPath, srcPath, libPath, testPath, test } } ← ask
-      let srcGlob = Path.concat [srcPath, "**", "*.purs"]
-          libGlob = Path.concat [libPath, "purescript-*", "src", "**", "*.purs"]
-          testSrcGlob = Path.concat [testPath, "**", "*.purs"]
-          args = ["build", "--", "--output", buildPath, "--json-errors"]
-              <> if test then pure testSrcGlob else mempty
-      res ← either _.stdErr _.stdErr <$> A.spawn "psc-package" args
-      case readPscJson res of
-        Left err → A.exit (Reason.Error ("Could not read psc output: " <> err))
-        Right res' → pure res'
+  where
+  toPaneState ∷ Maybe PscFailure → Boolean → State
+  toPaneState (Just res) _ = PscError res
+  toPaneState Nothing true = ModuleOk path (InProgress "building project...")
+  toPaneState Nothing false = ModuleOk path Done
 
-    runTestCmd :: DSL (Either SpawnOutput SpawnOutput)
-    runTestCmd = do
-      { options: { buildPath, testMain } } ← ask
-      let modulePath = "./" <> buildPath <> "/" <> jsEscape testMain
-      A.spawn "node" ["-e", "require('" <> modulePath <> "').main();"]
+shouldRunTests :: DSL Boolean
+shouldRunTests = do
+  { options: { test } } ← ask
+  pure test
 
-      where
-      -- | This is from bodil/pulp
-      -- |
-      -- | Escape a string for insertion into a JS string literal.
-      jsEscape :: String -> String
-      jsEscape =
-        replace (Pattern "'") (Replacement "\\'")
-        <<< replace (Pattern "\\") (Replacement "'")
-
-  initialBuild ∷ DSL Unit
-  initialBuild = do
-    A.drawPaneState InitialBuild
-    buildProject
-
-  rebuildModule ∷ String → DSL Unit
-  rebuildModule path = do
-    A.drawPaneState (CompilingModule path)
-    firstErr ← A.rebuildModule path
-    rebuild ← shouldBuildAll
-    A.drawPaneState (toPaneState firstErr rebuild)
-    when (isNothing firstErr && rebuild) buildProject
-
-    where
-    toPaneState ∷ Maybe PscFailure → Boolean → State
-    toPaneState (Just res) _ = PscError res
-    toPaneState Nothing true = ModuleOk path (InProgress "building project...")
-    toPaneState Nothing false = ModuleOk path Done
-
-  shouldRunTests :: DSL Boolean
-  shouldRunTests = do
-    { options: { test } } ← ask
-    pure test
-
-  shouldBuildAll :: DSL Boolean
-  shouldBuildAll = do
-    { options: { rebuild }} ← ask
-    pure rebuild
+shouldBuildAll :: DSL Boolean
+shouldBuildAll = do
+  { options: { rebuild }} ← ask
+  pure rebuild
