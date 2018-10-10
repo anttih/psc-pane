@@ -6,7 +6,7 @@ import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen, d
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (throwError, catchError)
 import Data.Either (Either(..))
-import Data.List (range)
+import Data.List ((..))
 import Data.Maybe (Maybe(..), maybe)
 import Effect (Effect)
 import Effect.Aff (Aff, runAff)
@@ -61,7 +61,7 @@ app options@{ srcPath, testPath, test } = void do
   render screen
 
   runAff handleAff do
-    running ← startPscIdeServer cwd $ range 4242 4252
+    running ← startPscIdeServer cwd $ 4242 .. 4252
     port ← maybe (throwError (error "Cannot start psc-ide-server")) pure running
     let config = { screen, box, port, cwd, prevPaneState: InitialBuild, options }
     stateRef ← liftEffect $ Ref.new config
