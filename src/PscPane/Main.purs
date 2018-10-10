@@ -69,13 +69,7 @@ app options@{ srcPath, testPath, test } = void do
       watchDirs = if test then [srcPath, testPath] else [srcPath]
 
       runDSL ∷ DSL Unit → Aff Unit
-      runDSL program =
-        let
-          program' = do
-            state ← liftEffect $ Ref.read stateRef
-            newState ← run state program
-            liftEffect $ Ref.write newState stateRef
-        in catchError program' (liftEffect <<< showError)
+      runDSL program = catchError (run stateRef program) (liftEffect <<< showError)
 
       events :: Stream Event
       events

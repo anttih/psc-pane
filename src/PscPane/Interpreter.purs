@@ -5,8 +5,6 @@ import Prelude
 import Blessed (render, setContent)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Free (foldFree)
-import Control.Monad.State.Class (get, modify)
-import Control.Monad.State.Trans (StateT, lift, execStateT)
 import Data.Array (head)
 import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..))
@@ -15,6 +13,8 @@ import Effect.Aff (Aff, attempt)
 import Effect.Class (liftEffect)
 import Effect.Class.Console as Console
 import Effect.Exception (error, throwException)
+import Effect.Ref (Ref)
+import Effect.Ref as Ref
 import Node.Process as P
 import PscIde (load, rebuild) as Ide
 import PscIde.Command (RebuildResult(..))
@@ -27,36 +27,36 @@ import PscPane.Pretty (formatState)
 import PscPane.Spawn (spawn)
 import PscPane.State (PscFailure(..))
 
-appN ∷ ActionF ~> StateT Config Aff
-appN = case _ of
+appN ∷ Ref Config -> ActionF ~> Aff
+appN ref = case _ of
 
   RebuildModule path f -> do
-    { port } ← get
-    res ← lift $ Ide.rebuild port path Nothing
+    { port } <- liftEffect $ Ref.read ref
+    res ← Ide.rebuild port path Nothing
     either (throwError <<< error) (pure <<< f <<< takeOne) res
 
   LoadModules a -> do
-    { port } ← get
-    lift $ const a <$> Ide.load port [] []
+    { port } ← liftEffect $ Ref.read ref
+    const a <$> Ide.load port [] []
 
   Spawn command args f -> do
-    res <- lift (spawn command args)
+    res <- spawn command args
     pure (f res)
 
   DrawPaneState state a -> do
-    { screen, box, cwd, options: { colorize } } ← get
+    { screen, box, cwd, options: { colorize } } ← liftEffect $ Ref.read ref
     height ← liftEffect rows
     liftEffect (setContent box (formatState colorize cwd height state))
     liftEffect (render screen)
-    void $ modify (_ { prevPaneState = state })
+    void $ liftEffect $ Ref.modify (_ { prevPaneState = state }) ref
     pure a
 
   ShowError err a ->
-    lift $ const a <$> display err
+    const a <$> display err
 
   Exit reason -> do
-    { port } <- get
-    void $ lift $ attempt $ Ide.stopServer port
+    { port } <- liftEffect $ Ref.read ref
+    void $ attempt $ Ide.stopServer port
     case reason of
       Dsl.Quit -> do
         void $ liftEffect $ P.exit 0
@@ -68,7 +68,7 @@ appN = case _ of
         liftEffect $ throwException (error "boom")
 
   Ask f -> do
-    config <- get
+    config <- liftEffect $ Ref.read ref
     pure (f config)
 
   where
@@ -78,7 +78,7 @@ appN = case _ of
   takeOne (Left (RebuildResult errors)) = Error <$> head errors
 
 
-run ∷ ∀ a. Config → DSL a → Aff Config
-run state program = execStateT (foldFree appN program) state
+run ∷ ∀ a. Ref Config → DSL a → Aff a
+run ref program = foldFree (appN ref) program
 
 foreign import rows ∷ Effect Int
