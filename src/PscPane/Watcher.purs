@@ -2,12 +2,11 @@ module PscPane.Watcher where
 
 import Prelude
 
-import Control.Coroutine (Producer)
 import Control.Coroutine.Aff (emit, produce)
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Stream (Stream(..))
 
 foreign import watch' ∷ Array String → (String → Effect Unit) → Effect Unit
 
-watch ∷ Array String → Producer String Aff Unit
-watch dirs = produce \emitter → watch' dirs (emit emitter)
+watch ∷ Array String → Stream String
+watch dirs = Stream $ produce \emitter → watch' dirs (emit emitter)

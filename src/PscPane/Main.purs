@@ -3,10 +3,8 @@ module PscPane.Main where
 import Prelude hiding (append)
 
 import Blessed (onResize, onQuit, render, append, setContent, mkBox, mkScreen, destroy)
-import Control.Coroutine (Consumer, Producer, consumer, emit, runProcess, transform, ($$), ($~))
-import Control.Coroutine.Aff.Utils (mergeProducers)
+import Control.Alt ((<|>))
 import Control.Monad.Error.Class (throwError, catchError)
-import Control.Monad.Rec.Class (forever)
 import Data.Either (Either(..))
 import Data.List (range)
 import Data.Maybe (Maybe(..), maybe)
@@ -26,6 +24,7 @@ import PscPane.Program (Event(..), run')
 import PscPane.Server (startPscIdeServer)
 import PscPane.State (State(..))
 import PscPane.Watcher (watch)
+import Stream (Stream, emit, subscribe)
 
 app ∷ Options → Effect Unit
 app options@{ srcPath, testPath, test } = void do
@@ -78,20 +77,14 @@ app options@{ srcPath, testPath, test } = void do
             liftEffect $ Ref.write newState stateRef
         in catchError program' (liftEffect <<< showError)
 
-      handle :: Consumer Event Aff Unit
-      handle = consumer \q -> runCmd (run' q) *> pure Nothing
+      events :: Stream Event
+      events
+        = emit Init
+        <|> (Quit <$ onQuit screen ["q", "C-c"])
+        <|> (Resize <$ onResize screen)
+        <|> (FileChange <$> watch watchDirs)
 
-      queryProducer :: Producer Event Aff Unit
-      queryProducer =
-        emit Init
-        `mergeProducers`
-        (onQuit screen ["q", "C-c"] $~ transform (const Quit))
-        `mergeProducers`
-        (onResize screen $~ forever (transform (const Resize)))
-        `mergeProducers`
-        (watch watchDirs $~ forever (transform FileChange))
-
-    runProcess (queryProducer $$ handle)
+    subscribe events \q -> runCmd (run' q)
 
 main ∷ Effect Unit
 main = do

@@ -1,10 +1,10 @@
 module Blessed where
 
 import Prelude
-import Control.Coroutine (Producer)
+
 import Control.Coroutine.Aff (emit, produce)
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Stream (Stream(..))
 
 foreign import data Screen ∷ Type
 
@@ -24,11 +24,11 @@ foreign import render ∷ Screen → Effect Unit
 
 foreign import debug ∷ Screen → String → Effect Unit
 
-onResize ∷ Screen → Producer Unit Aff Unit
-onResize screen = produce \emitter → on screen "resize" (emit emitter)
+onResize ∷ Screen → Stream Unit
+onResize screen = Stream $ produce \emitter → on screen "resize" (emit emitter)
 
-onQuit ∷ Screen → Array String → Producer Unit Aff Unit
-onQuit screen keys = produce \emitter → key screen keys (emit emitter)
+onQuit ∷ Screen → Array String → Stream Unit
+onQuit screen keys = Stream $ produce \emitter → key screen keys (emit emitter)
 
 foreign import on
   ∷ Screen
