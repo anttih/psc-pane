@@ -8,5 +8,5 @@ import Stream (Stream(..))
 
 foreign import watch' ∷ Array String → (String → Effect Unit) → Effect Unit
 
-watch ∷ Array String → Stream String
-watch dirs = Stream $ produce \emitter → watch' dirs (emit emitter)
+onFileChange ∷ Array String → Stream String
+onFileChange dirs = Stream $ produce \emitter → watch' dirs (emit emitter)

@@ -23,7 +23,7 @@ import PscPane.Interpreter (run)
 import PscPane.Program (Event(..), run')
 import PscPane.Server (startPscIdeServer)
 import PscPane.State (State(..))
-import PscPane.Watcher (watch)
+import PscPane.Watcher (onFileChange)
 import Stream (Stream, emit, subscribe)
 
 app ∷ Options → Effect Unit
@@ -82,7 +82,7 @@ app options@{ srcPath, testPath, test } = void do
         = emit Init
         <|> (Quit <$ onQuit screen ["q", "C-c"])
         <|> (Resize <$ onResize screen)
-        <|> (FileChange <$> watch watchDirs)
+        <|> (FileChange <$> onFileChange watchDirs)
 
     subscribe events \q -> runCmd (run' q)
 
