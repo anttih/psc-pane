@@ -20,7 +20,7 @@ import PscIde (load, rebuild) as Ide
 import PscIde.Command (RebuildResult(..))
 import PscIde.Server (stopServer) as Ide
 import PscPane.Config (Config)
-import PscPane.DSL (Action, ActionF(..))
+import PscPane.DSL (DSL, ActionF(..))
 import PscPane.DSL as Dsl
 import PscPane.Output (display)
 import PscPane.Pretty (formatState)
@@ -78,7 +78,7 @@ appN = case _ of
   takeOne (Left (RebuildResult errors)) = Error <$> head errors
 
 
-run ∷ ∀ a. Config → Action a → Aff Config
+run ∷ ∀ a. Config → DSL a → Aff Config
 run state program = execStateT (foldFree appN program) state
 
 foreign import rows ∷ Effect Int

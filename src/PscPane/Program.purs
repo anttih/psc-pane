@@ -7,7 +7,7 @@ import Data.Foldable (any)
 import Data.Maybe (Maybe(..), isNothing)
 import Data.String (Pattern(..), Replacement(..), replace)
 import Node.Path as Path
-import PscPane.DSL (Action, ask, exit)
+import PscPane.DSL (DSL, ask, exit)
 import PscPane.DSL as A
 import PscPane.DSL as Reason
 import PscPane.Parser (readPscJson)
@@ -19,7 +19,7 @@ data Event = Init | Resize | Quit | FileChange String
 
 foreign import minimatch ∷ String → String → Boolean
 
-eval :: Event -> Action Unit
+eval :: Event -> DSL Unit
 eval = case _ of
   Init ->
     initialBuild
@@ -39,7 +39,7 @@ eval = case _ of
 
   where
 
-  buildProject ∷ A.Action Unit
+  buildProject ∷ DSL Unit
   buildProject = do
     err ← runBuildCmd
     A.loadModules
@@ -60,7 +60,7 @@ eval = case _ of
 
     where
 
-    runBuildCmd :: A.Action (Maybe PscFailure)
+    runBuildCmd :: DSL (Maybe PscFailure)
     runBuildCmd = do
       { options: { buildPath, srcPath, libPath, testPath, test } } ← ask
       let srcGlob = Path.concat [srcPath, "**", "*.purs"]
@@ -73,7 +73,7 @@ eval = case _ of
         Left err → A.exit (Reason.Error ("Could not read psc output: " <> err))
         Right res' → pure res'
 
-    runTestCmd :: A.Action (Either SpawnOutput SpawnOutput)
+    runTestCmd :: DSL (Either SpawnOutput SpawnOutput)
     runTestCmd = do
       { options: { buildPath, testMain } } ← ask
       let modulePath = "./" <> buildPath <> "/" <> jsEscape testMain
@@ -88,12 +88,12 @@ eval = case _ of
         replace (Pattern "'") (Replacement "\\'")
         <<< replace (Pattern "\\") (Replacement "'")
 
-  initialBuild ∷ A.Action Unit
+  initialBuild ∷ DSL Unit
   initialBuild = do
     A.drawPaneState InitialBuild
     buildProject
 
-  rebuildModule ∷ String → A.Action Unit
+  rebuildModule ∷ String → DSL Unit
   rebuildModule path = do
     A.drawPaneState (CompilingModule path)
     firstErr ← A.rebuildModule path
@@ -107,12 +107,12 @@ eval = case _ of
     toPaneState Nothing true = ModuleOk path (InProgress "building project...")
     toPaneState Nothing false = ModuleOk path Done
 
-  shouldRunTests :: A.Action Boolean
+  shouldRunTests :: DSL Boolean
   shouldRunTests = do
     { options: { test } } ← ask
     pure test
 
-  shouldBuildAll :: A.Action Boolean
+  shouldBuildAll :: DSL Boolean
   shouldBuildAll = do
     { options: { rebuild }} ← ask
     pure rebuild

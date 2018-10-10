@@ -18,7 +18,7 @@ import Node.Process as P
 import Node.Yargs.Applicative (flag, yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscPane.Config (Options)
-import PscPane.DSL as A
+import PscPane.DSL (DSL)
 import PscPane.Interpreter (run)
 import PscPane.Program (Event(..), eval)
 import PscPane.Server (startPscIdeServer)
@@ -68,8 +68,8 @@ app options@{ srcPath, testPath, test } = void do
     let
       watchDirs = if test then [srcPath, testPath] else [srcPath]
 
-      runCmd ∷ A.Action Unit → Aff Unit
-      runCmd program =
+      runDSL ∷ DSL Unit → Aff Unit
+      runDSL program =
         let
           program' = do
             state ← liftEffect $ Ref.read stateRef
@@ -84,7 +84,7 @@ app options@{ srcPath, testPath, test } = void do
         <|> (Resize <$ onResize screen)
         <|> (FileChange <$> onFileChange watchDirs)
 
-    subscribe events (runCmd <<< eval)
+    subscribe events (runDSL <<< eval)
 
 main ∷ Effect Unit
 main = do

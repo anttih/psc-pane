@@ -20,25 +20,25 @@ data ActionF a
   | Ask (Config -> a)
   | Spawn String (Array String) (Either SpawnOutput SpawnOutput -> a)
 
-type Action a = Free ActionF a
+type DSL a = Free ActionF a
 
-rebuildModule ∷ String → Action (Maybe PscFailure)
+rebuildModule ∷ String → DSL (Maybe PscFailure)
 rebuildModule path = liftF (RebuildModule path identity)
 
-loadModules ∷ Action Unit
+loadModules ∷ DSL Unit
 loadModules = liftF (LoadModules unit)
 
-drawPaneState ∷ State → Action Unit
+drawPaneState ∷ State → DSL Unit
 drawPaneState state = liftF (DrawPaneState state unit)
 
-showError ∷ String → Action Unit
+showError ∷ String → DSL Unit
 showError err = liftF (ShowError err unit)
 
-exit :: forall a. ExitReason -> Action a
+exit :: forall a. ExitReason -> DSL a
 exit reason = liftF (Exit reason)
 
-ask :: Action Config
+ask :: DSL Config
 ask = liftF (Ask identity)
 
-spawn :: String -> Array String -> Action (Either SpawnOutput SpawnOutput)
+spawn :: String -> Array String -> DSL (Either SpawnOutput SpawnOutput)
 spawn command args = liftF (Spawn command args identity)
