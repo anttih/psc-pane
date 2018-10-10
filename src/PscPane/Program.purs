@@ -19,8 +19,8 @@ data Event = Init | Resize | Quit | FileChange String
 
 foreign import minimatch ∷ String → String → Boolean
 
-run' :: Event -> Action Unit
-run' = case _ of
+eval :: Event -> Action Unit
+eval = case _ of
   Init ->
     initialBuild
 

@@ -20,7 +20,7 @@ import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscPane.Config (Options)
 import PscPane.DSL as A
 import PscPane.Interpreter (run)
-import PscPane.Program (Event(..), run')
+import PscPane.Program (Event(..), eval)
 import PscPane.Server (startPscIdeServer)
 import PscPane.State (State(..))
 import PscPane.Watcher (onFileChange)
@@ -84,7 +84,7 @@ app options@{ srcPath, testPath, test } = void do
         <|> (Resize <$ onResize screen)
         <|> (FileChange <$> onFileChange watchDirs)
 
-    subscribe events \q -> runCmd (run' q)
+    subscribe events (runCmd <<< eval)
 
 main ∷ Effect Unit
 main = do
