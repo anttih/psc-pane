@@ -3,9 +3,10 @@
   "set": "master",
   "source": "https://github.com/anttih/package-sets.git",
   "depends": [
+    "prelude",
+    "run",
     "avar",
     "spec",
-    "prelude",
     "exceptions",
     "free",
     "aff-coroutines",

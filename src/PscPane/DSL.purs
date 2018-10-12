@@ -2,12 +2,13 @@ module PscPane.DSL where
 
 import Prelude
 
-import Control.Monad.Free (Free, liftF)
 import Data.Either (Either)
 import Data.Maybe (Maybe)
 import PscPane.Config (Config)
 import PscPane.Spawn (SpawnOutput)
 import PscPane.State (State, PscFailure)
+import Run (FProxy, Run, SProxy(..))
+import Run as Run
 
 data ExitReason = Quit | Error String
 
@@ -20,25 +21,31 @@ data ActionF a
   | Ask (Config -> a)
   | Spawn String (Array String) (Either SpawnOutput SpawnOutput -> a)
 
-type DSL a = Free ActionF a
+derive instance functorTalkF :: Functor ActionF
 
-rebuildModule ∷ String → DSL (Maybe PscFailure)
-rebuildModule path = liftF (RebuildModule path identity)
+type ACTION = FProxy ActionF
 
-loadModules ∷ DSL Unit
-loadModules = liftF (LoadModules unit)
+_action = SProxy :: SProxy "action"
 
-drawPaneState ∷ State → DSL Unit
-drawPaneState state = liftF (DrawPaneState state unit)
+type DSL r a = Run (action :: ACTION | r) a
 
-showError ∷ String → DSL Unit
-showError err = liftF (ShowError err unit)
+rebuildModule ∷ forall r. String → DSL r (Maybe PscFailure)
+rebuildModule path = Run.lift _action (RebuildModule path identity)
 
-exit :: forall a. ExitReason -> DSL a
-exit reason = liftF (Exit reason)
+loadModules ∷forall r.  DSL r Unit
+loadModules = Run.lift _action (LoadModules unit)
 
-ask :: DSL Config
-ask = liftF (Ask identity)
+drawPaneState ∷ forall r. State → DSL r Unit
+drawPaneState state = Run.lift _action (DrawPaneState state unit)
 
-spawn :: String -> Array String -> DSL (Either SpawnOutput SpawnOutput)
-spawn command args = liftF (Spawn command args identity)
+showError ∷ forall r. String → DSL r Unit
+showError err = Run.lift _action (ShowError err unit)
+
+exit :: forall r a. ExitReason -> DSL r a
+exit reason = Run.lift _action (Exit reason)
+
+ask :: forall r. DSL r Config
+ask = Run.lift _action (Ask identity)
+
+spawn :: forall r. String -> Array String -> DSL r (Either SpawnOutput SpawnOutput)
+spawn command args = Run.lift _action (Spawn command args identity)

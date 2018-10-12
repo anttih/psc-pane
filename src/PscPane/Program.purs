@@ -19,7 +19,7 @@ data Event = Init | Resize | Quit | FileChange String
 
 foreign import minimatch ∷ String → String → Boolean
 
-eval :: Event -> DSL Unit
+eval :: forall r. Event -> DSL r Unit
 eval = case _ of
   Init ->
     initialBuild
@@ -37,7 +37,7 @@ eval = case _ of
     -- build and load the purs file?
     when (any (minimatch path) ["**/*.js"]) buildProject
 
-buildProject ∷ DSL Unit
+buildProject ∷ forall r. DSL r Unit
 buildProject = do
   err ← runBuildCmd
   A.loadModules
@@ -56,7 +56,7 @@ buildProject = do
         else
           A.drawPaneState (BuildSuccess Done)
 
-runBuildCmd :: DSL (Maybe PscFailure)
+runBuildCmd :: forall r. DSL r (Maybe PscFailure)
 runBuildCmd = do
   { options: { buildPath, srcPath, libPath, testPath, test } } ← ask
   let srcGlob = Path.concat [srcPath, "**", "*.purs"]
@@ -69,7 +69,7 @@ runBuildCmd = do
     Left err → A.exit (Reason.Error ("Could not read psc output: " <> err))
     Right res' → pure res'
 
-runTestCmd :: DSL (Either SpawnOutput SpawnOutput)
+runTestCmd :: forall r. DSL r (Either SpawnOutput SpawnOutput)
 runTestCmd = do
   { options: { buildPath, testMain } } ← ask
   let modulePath = "./" <> buildPath <> "/" <> jsEscape testMain
@@ -84,12 +84,12 @@ runTestCmd = do
     replace (Pattern "'") (Replacement "\\'")
     <<< replace (Pattern "\\") (Replacement "'")
 
-initialBuild ∷ DSL Unit
+initialBuild ∷ forall r. DSL r Unit
 initialBuild = do
   A.drawPaneState InitialBuild
   buildProject
 
-rebuildModule ∷ String → DSL Unit
+rebuildModule ∷ forall r. String → DSL r Unit
 rebuildModule path = do
   A.drawPaneState (CompilingModule path)
   firstErr ← A.rebuildModule path
@@ -103,12 +103,12 @@ rebuildModule path = do
   toPaneState Nothing true = ModuleOk path (InProgress "building project...")
   toPaneState Nothing false = ModuleOk path Done
 
-shouldRunTests :: DSL Boolean
+shouldRunTests :: forall r. DSL r Boolean
 shouldRunTests = do
   { options: { test } } ← ask
   pure test
 
-shouldBuildAll :: DSL Boolean
+shouldBuildAll :: forall r. DSL r Boolean
 shouldBuildAll = do
   { options: { rebuild }} ← ask
   pure rebuild
