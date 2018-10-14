@@ -13,18 +13,19 @@ import Effect.Class.Console as Console
 import Effect.Exception (error, throwException)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Node.Process as P
+import Node.Process (exit) as P
 import PscIde (load, rebuild) as Ide
 import PscIde.Command (RebuildResult(..))
 import PscIde.Server (stopServer) as Ide
 import PscPane.Config (Config)
-import PscPane.DSL (ACTION, ActionF(..), _action)
-import PscPane.DSL as Dsl
 import PscPane.Output (display)
 import PscPane.Pretty (formatState)
+import PscPane.Program (ACTION, ActionF(..), _action)
+import PscPane.Program (ExitReason(..)) as P
 import PscPane.Spawn (spawn)
 import PscPane.State (PscFailure(..))
 import Run (AFF, EFFECT, Run, interpret, liftAff, liftEffect, on, runBaseAff', send)
+import Run.Except (EXCEPT, catch)
 
 appN ∷ Ref Config -> ActionF ~> Run (aff :: AFF, effect :: EFFECT)
 appN ref = case _ of
@@ -53,19 +54,6 @@ appN ref = case _ of
   ShowError err a ->
     const a <$> liftAff (display err)
 
-  Exit reason -> do
-    { port } <- liftEffect $ Ref.read ref
-    void $ liftAff $ attempt $ Ide.stopServer port
-    case reason of
-      Dsl.Quit -> do
-        void $ liftEffect $ P.exit 0
-        liftEffect $ throwException (error "boom")
-      Dsl.Error msg -> do
-        -- destroy screen
-        liftAff $ Console.error $ "Error: " <> msg
-        void $ liftEffect $ P.exit (-1)
-        liftEffect $ throwException (error "boom")
-
   Ask f -> do
     config <- liftEffect $ Ref.read ref
     pure (f config)
@@ -76,8 +64,24 @@ appN ref = case _ of
   takeOne (Right (RebuildResult warnings)) = Warning <$> head warnings
   takeOne (Left (RebuildResult errors)) = Error <$> head errors
 
+catch' :: forall r a. Ref Config -> P.ExitReason -> Run (effect :: EFFECT, aff :: AFF | r) a
+catch' ref reason = do
+  { port } <- liftEffect $ Ref.read ref
+  void $ liftAff $ attempt $ Ide.stopServer port
+  case reason of
+    P.Exit -> do
+      void $ liftEffect $ P.exit 0
+      liftEffect $ throwException (error "boom")
+    P.Error msg -> do
+      -- destroy screen
+      liftAff $ Console.error $ "Error: " <> msg
+      void $ liftEffect $ P.exit (-1)
+      liftEffect $ throwException (error "boom")
 
-run ∷ ∀ a. Ref Config → Run (action :: ACTION, effect :: EFFECT, aff :: AFF) a → Aff a
-run ref p = runBaseAff' $ interpret (on _action (appN ref) send) p
+run ∷ ∀ a. Ref Config → Run (action :: ACTION, except :: EXCEPT P.ExitReason, effect :: EFFECT, aff :: AFF) a → Aff a
+run ref p =
+  catch (catch' ref) p
+    # interpret (on _action (appN ref) send)
+    # runBaseAff'
 
 foreign import rows ∷ Effect Int

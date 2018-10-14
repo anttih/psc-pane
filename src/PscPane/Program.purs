@@ -7,13 +7,51 @@ import Data.Foldable (any)
 import Data.Maybe (Maybe(..), isNothing)
 import Data.String (Pattern(..), Replacement(..), replace)
 import Node.Path as Path
-import PscPane.DSL (DSL, ask, exit)
-import PscPane.DSL as A
-import PscPane.DSL as Reason
+import PscPane.Config (Config)
 import PscPane.Parser (readPscJson)
-import PscPane.Program (Event(FileChange, Resize, Quit, Init), minimatch)
 import PscPane.Spawn (SpawnOutput)
 import PscPane.State (Progress(..), PscFailure, State(..))
+import Run (FProxy, Run, SProxy(..))
+import Run as Run
+import Run.Except (EXCEPT, _except, throwAt)
+
+data ExitReason = Exit | Error String
+
+data ActionF a
+  = RebuildModule String (Maybe PscFailure → a)
+  | LoadModules a
+  | DrawPaneState State a
+  | ShowError String a
+  | Ask (Config -> a)
+  | Spawn String (Array String) (Either SpawnOutput SpawnOutput -> a)
+
+derive instance functorTalkF :: Functor ActionF
+
+type ACTION = FProxy ActionF
+
+_action = SProxy :: SProxy "action"
+
+type DSL r a = Run (action :: ACTION, except :: EXCEPT ExitReason | r) a
+
+rebuildModule' ∷ forall r. String → DSL r (Maybe PscFailure)
+rebuildModule' path = Run.lift _action (RebuildModule path identity)
+
+loadModules ∷ forall r.  DSL r Unit
+loadModules = Run.lift _action (LoadModules unit)
+
+drawPaneState ∷ forall r. State → DSL r Unit
+drawPaneState state = Run.lift _action (DrawPaneState state unit)
+
+showError ∷ forall r. String → DSL r Unit
+showError err = Run.lift _action (ShowError err unit)
+
+ask :: forall r. DSL r Config
+ask = Run.lift _action (Ask identity)
+
+spawn :: forall r. String -> Array String -> DSL r (Either SpawnOutput SpawnOutput)
+spawn command args = Run.lift _action (Spawn command args identity)
+
+
 
 data Event = Init | Resize | Quit | FileChange String
 
@@ -25,11 +63,11 @@ eval = case _ of
     initialBuild
 
   Quit ->
-    exit Reason.Quit
+    exit Exit
 
   Resize -> do
     { prevPaneState } <- ask
-    A.drawPaneState prevPaneState
+    drawPaneState prevPaneState
 
   FileChange path -> do
     when (any (minimatch path) ["**/*.purs"]) (rebuildModule path)
@@ -40,21 +78,21 @@ eval = case _ of
 buildProject ∷ forall r. DSL r Unit
 buildProject = do
   err ← runBuildCmd
-  A.loadModules
+  loadModules
   case err of
     Just res →
-      A.drawPaneState (PscError res)
+      drawPaneState (PscError res)
     Nothing → do
       runTests ← shouldRunTests
       if runTests then
         do
-          A.drawPaneState (BuildSuccess (InProgress "running tests..."))
+          drawPaneState (BuildSuccess (InProgress "running tests..."))
           testResult ← runTestCmd
           case testResult of
-            Left out → A.drawPaneState (TestFailure out)
-            Right _ → A.drawPaneState TestSuccess
+            Left out → drawPaneState (TestFailure out)
+            Right _ → drawPaneState TestSuccess
         else
-          A.drawPaneState (BuildSuccess Done)
+          drawPaneState (BuildSuccess Done)
 
 runBuildCmd :: forall r. DSL r (Maybe PscFailure)
 runBuildCmd = do
@@ -64,16 +102,16 @@ runBuildCmd = do
       testSrcGlob = Path.concat [testPath, "**", "*.purs"]
       args = ["build", "--", "--output", buildPath, "--json-errors"]
           <> if test then pure testSrcGlob else mempty
-  res ← either _.stdErr _.stdErr <$> A.spawn "psc-package" args
+  res ← either _.stdErr _.stdErr <$> spawn "psc-package" args
   case readPscJson res of
-    Left err → A.exit (Reason.Error ("Could not read psc output: " <> err))
+    Left err → exit (Error ("Could not read psc output: " <> err))
     Right res' → pure res'
 
 runTestCmd :: forall r. DSL r (Either SpawnOutput SpawnOutput)
 runTestCmd = do
   { options: { buildPath, testMain } } ← ask
   let modulePath = "./" <> buildPath <> "/" <> jsEscape testMain
-  A.spawn "node" ["-e", "require('" <> modulePath <> "').main();"]
+  spawn "node" ["-e", "require('" <> modulePath <> "').main();"]
 
   where
   -- | This is from bodil/pulp
@@ -86,15 +124,15 @@ runTestCmd = do
 
 initialBuild ∷ forall r. DSL r Unit
 initialBuild = do
-  A.drawPaneState InitialBuild
+  drawPaneState InitialBuild
   buildProject
 
 rebuildModule ∷ forall r. String → DSL r Unit
 rebuildModule path = do
-  A.drawPaneState (CompilingModule path)
-  firstErr ← A.rebuildModule path
+  drawPaneState (CompilingModule path)
+  firstErr ← rebuildModule' path
   rebuild ← shouldBuildAll
-  A.drawPaneState (toPaneState firstErr rebuild)
+  drawPaneState (toPaneState firstErr rebuild)
   when (isNothing firstErr && rebuild) buildProject
 
   where
@@ -112,3 +150,6 @@ shouldBuildAll :: forall r. DSL r Boolean
 shouldBuildAll = do
   { options: { rebuild }} ← ask
   pure rebuild
+
+exit :: forall r a. ExitReason -> DSL r a
+exit = throwAt _except

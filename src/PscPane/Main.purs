@@ -18,13 +18,13 @@ import Node.Process as P
 import Node.Yargs.Applicative (flag, yarg, runY)
 import Node.Yargs.Setup (usage, defaultHelp, defaultVersion)
 import PscPane.Config (Options)
-import PscPane.DSL (ACTION)
 import PscPane.Interpreter (run)
-import PscPane.Program (Event(..), eval)
+import PscPane.Program (ACTION, Event(..), ExitReason, eval)
 import PscPane.Server (startPscIdeServer)
 import PscPane.State (State(..))
 import PscPane.Watcher (onFileChange)
 import Run (AFF, EFFECT, Run)
+import Run.Except (EXCEPT)
 import Stream (Stream, emit, subscribe)
 
 app ∷ Options → Effect Unit
@@ -69,7 +69,7 @@ app options@{ srcPath, testPath, test } = void do
     let
       watchDirs = if test then [srcPath, testPath] else [srcPath]
 
-      runDSL ∷ Run (action :: ACTION, effect :: EFFECT, aff :: AFF) Unit → Aff Unit
+      runDSL ∷ Run (action :: ACTION, except :: EXCEPT ExitReason, effect :: EFFECT, aff :: AFF) Unit → Aff Unit
       runDSL program = catchError (run stateRef program) (liftEffect <<< showError)
 
       events :: Stream Event
